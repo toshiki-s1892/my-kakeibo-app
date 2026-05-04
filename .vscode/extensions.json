@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "usernamehw.errorlens",
+    "yoavbls.pretty-ts-errors",
+    "oven.bun-vscode",
+    "github.copilot",
+    "42crunch.vscode-openapi",
+    "qwtel.sqlite-viewer",
+    "matt-meyers.vscode-dbml",
+    "bocovo.dbml-erd-visualizer",
+    "dbdiagram.dbdiagram-vscode"
+  ]
+}
