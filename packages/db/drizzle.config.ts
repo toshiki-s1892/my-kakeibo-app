@@ -1,0 +1,18 @@
+import { config } from 'dotenv';
+import { defineConfig } from 'drizzle-kit';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+
+const currentDir = dirname(fileURLToPath(import.meta.url));
+config({ path: resolve(currentDir, '../../.env.local') });
+
+export default defineConfig({
+  schema: './src/schema/index.ts',
+  out: './migrations',
+  dialect: 'turso',
+  disableForeignKeys: true,
+  dbCredentials: {
+    url: process.env.TURSO_CONNECTION_URL!,
+    authToken: process.env.TURSO_AUTH_TOKEN!,
+  },
+});

@@ -11,6 +11,7 @@
     "qwtel.sqlite-viewer",
     "matt-meyers.vscode-dbml",
     "bocovo.dbml-erd-visualizer",
-    "dbdiagram.dbdiagram-vscode"
+    "dbdiagram.dbdiagram-vscode",
+    "Vercel.turbo-vsc"
   ]
 }
