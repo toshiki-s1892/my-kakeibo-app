@@ -1,12 +1,12 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { usersTable } from './users';
+import { usersTable } from './users.js';
 
 // ==========================================
 // categories テーブル
 // ==========================================
 export const categoriesTable = sqliteTable('categories', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id', { length: 50 })
+  userId: integer('user_id')
     .references(() => usersTable.id, { onDelete: 'restrict' })
     .notNull(),
   typeCode: integer('type_code').notNull(),

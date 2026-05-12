@@ -1,12 +1,12 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { usersTable } from './users';
+import { integer, sqliteTable } from 'drizzle-orm/sqlite-core';
+import { usersTable } from './users.js';
 
 // ==========================================
 // ai_usage_logs テーブル
 // ==========================================
 export const aiUsageLogsTable = sqliteTable('ai_usage_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }).notNull(),
-  userId: text('user_id', { length: 50 })
+  userId: integer('user_id')
     .references(() => usersTable.id, { onDelete: 'restrict' })
     .notNull(),
   featureCode: integer('feature_code').notNull(),
