@@ -1,46 +1,48 @@
 Table users {
-  id varchar(50) [pk, note: 'ユーザーID']
-  region_code integer [note: '居住地域（1~47のJIS都道府県コード）']
-  gender_code integer [note: '性別（ISO 5218準拠。0:不明, 1:男性, 2:女性, 9:適用不能）']
-  birth_year integer [note: '生まれ年（年齢計算用）']
-  created_at timestamp [default: `now()`]
-  updated_at timestamp
-  deleted_at timestamp
+  id integer [pk, increment, note: 'ユーザーID']
+  clerk_id varchar [unique, not null, note: 'Clerk が発行する外部認証ID']
+  region_code integer [not null, note: '居住地域（1~47のJIS都道府県コード）']
+  gender_code integer [not null, note: '性別（ISO 5218準拠。0:不明, 1:男性, 2:女性, 9:適用不能）']
+  birth_year integer [not null, note: '生まれ年（年齢計算用）']
+  created_at integer [not null, note: 'UNIX timestamp']
+  updated_at integer [not null, note: 'UNIX timestamp']
+  deleted_at integer [note: 'UNIX timestamp。NULLでない場合は論理削除済み']
 }
 
 Table family_members {
   id integer [pk, increment]
-  user_id varchar(50) [note: '親ユーザーのID']
-  relationship_code integer [note: '続録（1:配偶者, 2:子, 3:親, 4:その他など）']
-  gender_code integer [note: '性別（ISO 5218）']
-  birth_year integer [note: '生まれ年']
-  created_at timestamp [default: `now()`]
+  user_id integer [not null, note: '親ユーザーのID']
+  relationship_code integer [not null, note: '続柄（1:本人, 2:配偶者, 3:子, 4:親, 5:その他）']
+  gender_code integer [not null, note: '性別（ISO 5218）']
+  birth_year integer [not null, note: '生まれ年']
+  created_at integer [note: 'UNIX timestamp']
 }
 
 Table ai_usage_logs {
-  id integer [primary key, increment, note: 'ログID']
-  user_id varchar(50) [note: '利用したユーザー']
-  feature_code integer [note: '機能の種類（例: 1: receipt_scan, 2: saving_advice）']
-  created_at timestamp [default: `now()`, note: '利用日時（この日付で1日あたりの回数をカウント）']
+  id integer [pk, increment, not null, note: 'ログID']
+  user_id integer [not null, note: '利用したユーザー']
+  feature_code integer [not null, note: '機能の種類（1: レシート読み取り, 2: 支出分析・アドバイス）']
+  created_at integer [note: 'UNIX timestamp。この日付で1日あたりの回数をカウント']
 }
 
 Table transactions {
-  id varchar(50) [primary key, note: 'UUID等を想定（他人にURL等から推測されないように文字列にするのが安全）']
-  user_id varchar(50) [note: '記録したユーザー']
-  category_id integer [note: '紐づくカテゴリ']
-  amount integer [note: '金額（日本円なので整数）']
-  transaction_date date [note: '購入日・支払い日']
+  id integer [pk, increment, note: '取引ID']
+  user_id integer [not null, note: '記録したユーザー（口座オーナー）']
+  family_member_id integer [not null, note: '支出・収入の主体。relationship_code=1（本人）を含むfamily_membersのID']
+  category_id integer [not null, note: '紐づくカテゴリ']
+  amount integer [not null, note: '金額（日本円なので整数）']
+  transaction_date varchar [not null, note: '購入日・支払い日（テキスト形式で保存）']
   memo varchar(255) [note: 'レシートから読み取った商品名や、ユーザーの自由メモ']
-  created_at timestamp [default: `now()`]
-  updated_at timestamp
+  created_at integer [note: 'UNIX timestamp']
+  updated_at integer [note: 'UNIX timestamp']
 }
 
 Table categories {
-  id integer [primary key, increment, note: 'カテゴリID']
-  user_id varchar(50) [note: '作成者。NULLの場合は全ユーザー共通のデフォルトカテゴリ']
-  type_code integer [note: '1: 支出(Expense), 2: 収入(Income)']
-  name varchar(50) [note: 'カテゴリ名（例: 食費, お給料, 推し活費など）']
-  created_at timestamp [default: `now()`]
+  id integer [pk, increment, note: 'カテゴリID']
+  user_id integer [not null, note: '作成者ユーザーID']
+  type_code integer [not null, note: '1: 支出(Expense), 2: 収入(Income)']
+  name varchar(50) [not null, note: 'カテゴリ名（例: 食費, お給料, 推し活費など）']
+  created_at integer [note: 'UNIX timestamp']
 }
 
 REF: users.id < family_members.user_id
@@ -48,3 +50,4 @@ REF: users.id < ai_usage_logs.user_id
 REF: users.id < transactions.user_id
 REF: users.id < categories.user_id
 REF: transactions.category_id > categories.id
+REF: transactions.family_member_id > family_members.id

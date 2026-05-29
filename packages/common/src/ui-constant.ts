@@ -12,10 +12,11 @@ export const GENDER_MAP = {
 
 // 家族構成
 export const RELATIONSHIP_MAP = {
-  1: '配偶者',
-  2: '子',
-  3: '親',
-  4: 'その他',
+  1: '本人',
+  2: '配偶者',
+  3: '子',
+  4: '親',
+  5: 'その他',
 } as const;
 
 // 都道府県

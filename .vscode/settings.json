@@ -1,13 +1,14 @@
 {
+  // 自動フォーマットとESLintの修正を保存時に実行する設定
   "editor.formatOnSave": true,
+  // ワークスペースのTypeScript SDKを使用するように促す設定
+  "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+  // Prettierをデフォルトのフォーマッタとして指定
   "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // ESLintの修正を保存時に実行する設定
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
   },
-  "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  // TypeScriptのSDKのパスを指定
+  "js/ts.tsdk.path": "apps/web/node_modules/typescript/lib"
 }

@@ -1,10 +1,136 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "darkMode": true,
   "gridEnabling": false,
-  "detailLevel": "All",
-  "tablePositions": [],
-  "tableGroupCollapseStates": [],
-  "stickyNoteLayouts": [],
-  "referencePaths": []
+  "currentViewName": null,
+  "defaultView": {
+    "detailLevel": "All",
+    "tablePositions": [
+      {
+        "name": "users",
+        "schemaName": "public",
+        "x": 12,
+        "y": 12
+      },
+      {
+        "name": "family_members",
+        "schemaName": "public",
+        "x": 497.3642578125,
+        "y": 53
+      },
+      {
+        "name": "ai_usage_logs",
+        "schemaName": "public",
+        "x": 497.3642578125,
+        "y": 323
+      },
+      {
+        "name": "transactions",
+        "schemaName": "public",
+        "x": 1016.1552734375,
+        "y": 12
+      },
+      {
+        "name": "categories",
+        "schemaName": "public",
+        "x": 497.3642578125,
+        "y": 529
+      }
+    ],
+    "tableGroupCollapseStates": [],
+    "stickyNoteLayouts": [],
+    "referencePaths": [
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "family_members",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "ai_usage_logs",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "transactions",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "id"
+        ],
+        "firstTableName": "users",
+        "firstSchemaName": "public",
+        "firstRelation": "1",
+        "secondFieldNames": [
+          "user_id"
+        ],
+        "secondTableName": "categories",
+        "secondSchemaName": "public",
+        "secondRelation": "*",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "category_id"
+        ],
+        "firstTableName": "transactions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "categories",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      },
+      {
+        "firstFieldNames": [
+          "family_member_id"
+        ],
+        "firstTableName": "transactions",
+        "firstSchemaName": "public",
+        "firstRelation": "*",
+        "secondFieldNames": [
+          "id"
+        ],
+        "secondTableName": "family_members",
+        "secondSchemaName": "public",
+        "secondRelation": "1",
+        "checkPoints": []
+      }
+    ]
+  },
+  "views": {}
 }
