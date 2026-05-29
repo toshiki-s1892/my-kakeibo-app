@@ -1,58 +1,84 @@
-# Turborepo Tailwind CSS starter
+# my-kakeibo-app
 
-This Turborepo starter is maintained by the Turborepo core team.
+AI による支出分析・レシート読み取りを備えた、個人・家族向け家計簿 Web アプリケーション。
 
-## Using this example
+## 技術スタック
 
-Run the following command:
+| カテゴリ | 技術 |
+|---|---|
+| モノレポ管理 | Turborepo |
+| ランタイム / パッケージマネージャ | Bun |
+| フレームワーク | Next.js 16 (App Router) |
+| 言語 | TypeScript |
+| 認証 | Clerk |
+| API | Hono + Zod OpenAPI |
+| ORM | Drizzle ORM |
+| DB | Turso (分散 SQLite) |
+| スタイリング | Tailwind CSS v4 |
+| UI コンポーネント | shadcn/ui + Base UI |
+| フォーム | React Hook Form + Zod |
 
-```sh
-npx create-turbo@latest -e with-tailwind
+## ワークスペース構成
+
+```
+my-kakeibo-app/
+├── apps/
+│   └── web/              # Next.js Web アプリ（ポート 3001）
+└── packages/
+    ├── db/               # Drizzle スキーマ・マイグレーション
+    ├── common/           # 共通定数・コード値定義
+    ├── ui/               # 共有 UI コンポーネント
+    ├── tailwind-config/  # Tailwind 共通設定
+    ├── eslint-config/    # ESLint 共通設定
+    └── typescript-config/ # TypeScript 共通設定
 ```
 
-## What's inside?
+## ローカル起動
 
-This Turborepo includes the following packages/apps:
+### 前提条件
 
-### Apps and Packages
+- Bun >= 1.3.13
+- Node.js >= 18
 
-- `docs`: a [Next.js](https://nextjs.org/) app with [Tailwind CSS](https://tailwindcss.com/)
-- `web`: another [Next.js](https://nextjs.org/) app with [Tailwind CSS](https://tailwindcss.com/)
-- `ui`: a stub React component library with [Tailwind CSS](https://tailwindcss.com/) shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+### 環境変数
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+ルート直下と `apps/web/` に `.env.local` を作成し、以下を設定する。
 
-### Building packages/ui
+```env
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
 
-This example is set up to produce compiled styles for `ui` components into the `dist` directory. The component `.tsx` files are consumed by the Next.js apps directly using `transpilePackages` in `next.config.ts`. This was chosen for several reasons:
-
-- Make sharing one `tailwind.config.ts` to apps and packages as easy as possible.
-- Make package compilation simple by only depending on the Next.js Compiler and `tailwindcss`.
-- Ensure Tailwind classes do not overwrite each other. The `ui` package uses a `ui-` prefix for it's classes.
-- Maintain clear package export boundaries.
-
-Another option is to consume `packages/ui` directly from source without building. If using this option, you will need to update the `tailwind.config.ts` in your apps to be aware of your package locations, so it can find all usages of the `tailwindcss` class names for CSS compilation.
-
-For example, in [tailwind.config.ts](packages/tailwind-config/tailwind.config.ts):
-
-```js
-  content: [
-    // app content
-    `src/**/*.{js,ts,jsx,tsx}`,
-    // include packages if not transpiling
-    "../../packages/ui/*.{js,ts,jsx,tsx}",
-  ],
+# Turso
+TURSO_CONNECTION_URL=
+TURSO_AUTH_TOKEN=
 ```
 
-If you choose this strategy, you can remove the `tailwindcss` and `autoprefixer` dependencies from the `ui` package.
+### インストール・起動
 
-### Utilities
+```bash
+# 依存関係インストール
+bun install
 
-This Turborepo has some additional tools already setup for you:
+# 開発サーバー起動（全ワークスペース）
+bun dev
+```
 
-- [Tailwind CSS](https://tailwindcss.com/) for styles
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+Web アプリは http://localhost:3001 で起動します。
+
+### DB マイグレーション
+
+`packages/db/` で実行する（`drizzle.config.ts` がそこにあるため）。
+
+```bash
+cd packages/db
+bunx drizzle-kit migrate
+```
+
+## ドキュメント
+
+| ドキュメント | 内容 |
+|---|---|
+| [要件定義](docs/requirements/overview.md) | 機能要件・非機能要件 |
+| [機能仕様](docs/specs/overview.md) | 画面一覧・API・コード値定義 |
+| [アーキテクチャ](docs/architecture/overview.md) | 技術スタック・DBスキーマ・ディレクトリ構成 |
