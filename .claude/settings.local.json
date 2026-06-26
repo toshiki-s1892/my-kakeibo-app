@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "WebSearch",
+      "Bash(bunx drizzle-kit *)",
+      "Bash(npx drizzle-kit *)",
+      "WebFetch(domain:hono.dev)",
+      "WebFetch(domain:ui.shadcn.com)",
+      "WebFetch(domain:base-ui.com)",
+      "WebFetch(domain:clerk.com)",
+      "WebFetch(domain:qiita.com)",
+      "WebFetch(domain:zenn.dev)",
+      "mcp__stitch__list_screens",
+      "mcp__stitch__list_design_systems",
+      "mcp__stitch__update_design_system",
+      "Bash(python3)"
     ]
   }
 }
