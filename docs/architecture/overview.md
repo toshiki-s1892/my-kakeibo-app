@@ -1,4 +1,4 @@
-# アーキテクチャ
+# アーキテクチャ概要
 
 ## 構成図
 
@@ -23,36 +23,22 @@ my-kakeibo-app/          ← Turborepo モノレポ
 | 言語 | TypeScript | 5.9.2 |
 | ランタイム | Bun | - |
 | モノレポ管理 | Turborepo | - |
-| 認証 | Clerk | `@clerk/nextjs` v7 |
+| 認証（フロント） | Clerk | `@clerk/nextjs` v7 |
+| 認証（APIサーバー） | Clerk | `@clerk/hono` |
 | API | Hono + Zod OpenAPI | v4 |
+| APIドキュメント | Swagger UI（`@hono/swagger-ui`） | - |
+| APIクライアント生成 | orval | - |
+| データフェッチ | TanStack Query | - |
+| AI（画像認識・テキスト生成） | Google Gemini API | - |
 | ORM | Drizzle ORM | - |
 | DB | Turso（分散 SQLite） | - |
 | スタイリング | Tailwind CSS v4 | - |
 | UI コンポーネント | shadcn/ui + Base UI | - |
 | フォーム | React Hook Form + Zod | - |
-
-## DB スキーマ
-
-```
-users
-  id, clerk_id, regionCode, genderCode, birthYear
-  createdAt, updatedAt, deletedAt
-
-categories
-  id, userId → users.id, typeCode, name, createdAt
-
-transactions
-  id, userId → users.id, familyMemberId → family_members.id
-  categoryId → categories.id
-  amount, transactionDate, memo, createdAt, updatedAt
-
-family_members
-  id, userId → users.id
-  relationshipCode（1:本人 2:配偶者 3:子 4:親 5:その他）, genderCode, birthYear, createdAt
-
-ai_usage_logs
-  id, userId → users.id, featureCode, createdAt
-```
+| テスト（単体・結合） | Vitest | - |
+| テスト（E2E） | Playwright | - |
+| Git hooks | Lefthook | - |
+| 定期実行 | Vercel Cron Jobs | - |
 
 ## ディレクトリ構成（apps/web）
 
@@ -60,18 +46,37 @@ ai_usage_logs
 apps/web/
 ├── app/
 │   ├── (auth)/          ← 認証ページ群（Clerk）
-│   ├── (main)/          ← 認証済みページ群
-│   └── api/[...route]/  ← Hono API エントリポイント
-├── features/            ← 機能別コンポーネント・ロジック
+│   ├── (onboarding)/    ← 初回登録ページ群（プロフィール設定）
+│   ├── (app)/           ← 認証・初回登録済みページ群（家計簿機能）
+│   └── api/[...route]/  ← Hono API エントリポイント（全ルートを集約）
 ├── components/
-│   └── ui/              ← shadcn/ui コンポーネント
-└── server/              ← サーバーサイドミドルウェア
+│   ├── ui/              ← shadcn/ui コンポーネント
+│   └── provider.tsx     ← TanStack Query の QueryClientProvider
+├── features/            ← 機能別コンポーネント・ロジック
+├── lib/
+│   └── api/
+│       └── generated/   ← orval が生成するコード（型・React Query hooks）
+└── server/              ← サーバーサイドコード
+    ├── lib/
+    │   └── db.ts        ← Drizzle DBクライアント（Next.js環境用）
+    ├── shared/          ← 複数ルートで共有するスキーマ
+    │   ├── error.ts     ← ErrorResponseSchema（全ルート共通）
+    │   └── common.ts    ← IdParamSchema・IdResponseSchema
+    └── routes/          ← Hono ルート（機能別）
+        ├── transactions/ ← 取引記録
+        │   ├── index.ts      ← ルートをexport
+        │   ├── schema.ts     ← Zodスキーマ・OpenAPI定義
+        │   └── handler.ts    ← DBアクセス処理
+        ├── categories/   ← カテゴリ管理
+        ├── family-members/ ← 家族構成
+        ├── profile/      ← プロフィール設定
+        └── ai/           ← AI機能
 ```
 
 ## データフロー
 
 ```
-Browser
+Browser（TanStack Query hooks）
   → Next.js App Router (SSR/RSC)
     → Clerk 認証チェック (middleware)
       → Hono API (/api/...)
@@ -79,123 +84,38 @@ Browser
           → Turso (SQLite)
 ```
 
-## マイグレーション管理
-
-`packages/db/migrations/` に SQL マイグレーションファイルを管理。  
-`packages/db/drizzle.config.ts` で設定。
-
-## 技術的意思決定
-
-### モノレポ管理: Turborepo
-
-**採用理由:**
-- `apps/web` と `packages/db` など複数ワークスペース間でのコード共有が容易
-- タスクのキャッシュにより CI・ローカルのビルドが高速
-- Vercel 製のため Next.js との親和性が高い
-
-**懸念点:** 特になし。Turborepo は現状のスタックに対して素直に機能する。
-
----
-
-### ランタイム / パッケージマネージャ: Bun
-
-**採用理由:**
-- npm / yarn より高速なインストール・実行
-- TypeScript をネイティブで実行可能（`tsx` 不要な場面も多い）
-- `bun.lock` による再現性の高い依存関係管理
-
-**懸念点:** 一部の npm パッケージで Bun 未対応のケースがある。Node.js が前提のライブラリを使う際は動作確認が必要。
-
----
-
-### フレームワーク: Next.js 16 (App Router) + React 19
-
-**採用理由:**
-- App Router による SSR / RSC の活用でパフォーマンスを最適化できる
-- Clerk・Hono・Tailwind など周辺ライブラリの Next.js 対応が充実している
-- Vercel へのデプロイとの相性が最良
-
-**懸念点:** Next.js 16 + React 19 は最新バージョンのため、エコシステムの一部ライブラリが未対応の可能性がある。ライブラリ追加時は都度確認が必要。
-
----
-
-### 認証: Clerk
-
-**採用理由:**
-- サインアップ・サインイン・セッション管理・MFA を外部委譲でき、認証の実装コストをゼロに近づけられる
-- Next.js App Router 向けの公式 SDK（`@clerk/nextjs`）が充実している
-- `clerk_id` を自前 DB の `users` テーブルと紐付けることで、アプリ固有のユーザー情報を柔軟に管理できる
-
-**懸念点:** 無料枠を超えると有料になる。ユーザー数が増えた場合のコスト試算が必要。
-
----
-
-### API: Hono + Zod OpenAPI
-
-**採用理由:**
-- Edge Runtime に対応しており、Vercel Edge Network で低レイテンシな API を実現できる
-- `@hono/zod-openapi` によりスキーマ定義と OpenAPI ドキュメント生成を一元管理できる
-- `@hono/clerk-auth` で Clerk 認証と簡単に統合できる
-
-**懸念点:** Next.js の Route Handler に Hono を乗せる構成はオーバーヘッドが若干あるが、このプロジェクト規模では問題にならない。
-
----
-
-### ORM + DB: Drizzle ORM + Turso（分散 SQLite）
-
-**採用理由:**
-- Drizzle はスキーマを TypeScript で定義でき、Zod との連携（`drizzle-zod`）で DB 定義からバリデーションスキーマを自動生成できる
-- Turso は Edge Runtime に対応した分散 SQLite で、グローバルレプリケーションによる低レイテンシを実現できる
-- SQLite は小〜中規模アプリに十分な性能を持ち、インフラコストが低い
-
-**懸念点:** SQLite は書き込み並行性が低いため、同時書き込みが多い場面では PostgreSQL より劣る。ユーザー数が大幅に増えた場合は DB の移行を検討する必要がある。
-
----
-
-### スタイリング: Tailwind CSS v4
-
-**採用理由:**
-- ユーティリティファーストで UI の実装速度が高い
-- v4 は CSS ネイティブな設計でビルドが高速
-
-**懸念点:** shadcn/ui は Tailwind v3 をベースに設計されており、v4 との互換性に一部制約がある。コンポーネントの追加・カスタマイズ時に動作確認が必要。
-
----
-
-### UI コンポーネント: shadcn/ui + Base UI
-
-**採用理由:**
-- shadcn/ui はコンポーネントをプロジェクト内にコピーする方式のため、依存関係に縛られずカスタマイズが自由
-- Base UI（MUI 製）はヘッドレスなアクセシブルコンポーネントを提供し、shadcn/ui でカバーしきれない部品を補完できる
-
-**懸念点:** 2つのコンポーネントライブラリを併用するため、役割分担を明確にしないと実装がばらつく。基本は shadcn/ui を使い、Base UI は shadcn/ui にないコンポーネントに限定する運用が望ましい。
-
----
-
-### features/ ディレクトリ構成
-
-各機能は `features/{feature名}/` 配下に以下のサブディレクトリで整理する。
+### 型生成フロー（開発時）
 
 ```
-features/
-└── {feature名}/
-    ├── components/   # UI コンポーネント
-    ├── routes/       # ページ相当のコンポーネント
-    ├── hooks/        # カスタムフック（useXxx）
-    ├── types/        # その feature 固有の型定義
-    └── api/          # API 呼び出し関数
+① bun run dev でサーバー起動
+② Honoルートを追加・変更（schema.ts にZodスキーマを定義）
+③ bun run generate を実行
+   → orval が http://localhost:3001/api/doc を読む
+   → lib/api/generated/ に型・React Query hooks を生成
+④ フロントエンドで生成した hooks をそのまま使う
 ```
 
+## `(app)`レイアウト構成
 
----
+`(app)/layout.tsx`で全画面共通のレイアウトを構成する。個人・家族向けの認証必須アプリであり、公開Webサービスのような利用規約・お問い合わせ等のリンクを持つ従来的な「フッター」は不要と判断し、採用しない。
 
-### フォーム: React Hook Form + Zod
+- **ヘッダー（PC・スマホ共通）**: 画面タイトル + Clerkの`UserButton`（アカウント設定・サインアウト）のみのミニマム構成。月切り替えや家族メンバースライドなど各画面固有のUIはヘッダーに含めない。`UserButton`もClerkの`appearance` propの対象であり、サインイン/サインアップと同じ方針（[画面設計書運用（Stitch）](./decisions/design-docs-tooling.md#画面設計書運用stitch)参照）でStitchで決めた配色・トーンに統一する
+- **ナビゲーション（PC・スマホ共通の下部固定タブバー）**: トップレベル画面5つ（ホーム・取引記録・カテゴリ管理・家族構成管理・本格的アドバイス。[画面一覧](../specs/overview.md#画面一覧)参照）への切り替えを、自前の下部固定タブバーコンポーネント1つで統一する（ナビ項目5つ。アイコン+ラベル。アイコンの具体的な選定はStitchでのデザイン確定後に行う）。個人開発・家族利用というスケールを踏まえ、PC専用にshadcn/uiの`Sidebar`コンポーネントを別途実装・保守するコストより、1コンポーネントで統一する実装のシンプルさを優先した（PCでは画面いっぱいに伸ばさず中央寄せで幅を制限し、間延びを抑える。具体的にはメインコンテンツと同じ最大幅[1200px]に揃え、タブ間の余白とクリック領域を確保する）。専用の「設定」項目・「レシート」専用項目は追加しない（家族構成管理・カテゴリ管理がアプリ固有の設定に該当し、アカウント自体の設定はClerkの`UserButton`のドロップダウンで足りるため。レシート読み取りは後述のFABから入れるため、ナビとレシートスキャン画面への入口が2つになる重複を避ける）
+  - 画面名「ダッシュボード」はユーザー向け表示ラベルとしては「ホーム」に変更（[画面一覧](../specs/overview.md#画面一覧)参照）。ルートパス（`(app)/dashboard`）・機能名としての「ダッシュボード」呼称（[dashboard.md](../specs/features/dashboard.md)等）はそのまま維持し、表示ラベルのみの変更とする
+- **「+取引を追加」フローティングボタン（PC・スマホ共通）**: 取引登録は最も頻度の高い操作のため、ナビゲーション経由を介さず即座に[取引登録フォーム](../specs/features/transactions.md)へ遷移できるよう、下部タブバーに重ねて全画面共通でフローティング表示する。タップすると「手入力で記録」「レシートで記録」の2択をその場に表示する（[レシート読み取り](../specs/features/ai.md#1-レシート読み取り自動入力receipt_scan)はこのアプリの強みであり、手入力と同じ優先度で見せるため。下部タブに専用項目を追加する案もあったが、遷移先（`/transactions/new`の単発フォーム）が手入力と同じであり入口が二重になるだけのため採用しない）。「手入力で記録」を選ぶと通常通り単発フォームを開き、「レシートで記録」を選ぶと同じフォームをレシート読み取りUIを開いた状態で表示する
 
-**採用理由:**
-- API が Hono（REST）のため、Server Actions 前提の Conform / React 19 `useActionState` の強みが活きない
-- shadcn/ui の公式サンプルが RHF + Zod ベースで統一されている
-- 非制御コンポーネントベースで再レンダリングが少なくパフォーマンスが良い
+## 関連ドキュメント
 
-**不採用:**
-- `useActionState`（Server Actions 前提・REST API と相性が悪い）
-- Conform（同上）
+技術的意思決定（[decisions/](./decisions/)）:
+- [stack.md](./decisions/stack.md): 技術スタックの選定理由
+- [api-conventions.md](./decisions/api-conventions.md): API・サーバー実装の規約
+- [frontend-conventions.md](./decisions/frontend-conventions.md): フロントエンド実装の規約
+- [security.md](./decisions/security.md): セキュリティ対応方針
+- [testing-strategy.md](./decisions/testing-strategy.md): テスト戦略
+- [dev-workflow.md](./decisions/dev-workflow.md): 開発フロー（Lefthook・CI・PRレビュー）
+- [design-docs-tooling.md](./decisions/design-docs-tooling.md): 設計ドキュメントのツール選定（Mermaid・Stitch）
+
+その他:
+- [データベース設計](./database.md)
+- [画面遷移図](./screen-flow.md)
+- [認証シーケンス図](./auth-sequence.md)

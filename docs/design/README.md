@@ -1,0 +1,133 @@
+# 画面設計書
+
+[Google Stitch](https://stitch.withgoogle.com/) で作成した画面モックアップを画面単位で管理する（採用理由は [architecture/decisions/design-docs-tooling.md](../architecture/decisions/design-docs-tooling.md#画面設計書運用stitch) 参照）。
+
+Stitchは雰囲気・方向性決めのみに使用し、実装はユーザー自身がこのモックアップを参考に行う。
+
+関連作業は2つのスキルに分かれている: Stitchでのモックアップの新規生成・修正は[`stitch-screen-mockup`スキル](../../.claude/skills/stitch-screen-mockup/SKILL.md)、できあがったスクリーンショットから採番済みの画面設計書を作成・更新するのは[`screen-design-doc`スキル](../../.claude/skills/screen-design-doc/SKILL.md)が担当する。新しい画面が必要なときは前者→後者の順に使う。
+
+## ドキュメント構成
+
+| ファイル | 役割 |
+|---|---|
+| README.md（このファイル） | 全体の進行状況・[画面一覧](#画面一覧) |
+| [style-guide.md](./style-guide.md) | Stitchプロンプトを書く前に必ず読むルール集（ブランド・配色・用語・仕様との整合・Stitchツール自体の運用上の制約）。**確定版を再生成する前に必読** |
+| [_template.md](./_template.md) | 画面設計書1ファイルのテンプレート。新規作成時はこれをコピーする |
+| `screenshots/{画面}-{pc\|sp}.png` / `screenshots/{画面}-{pc\|sp}-numbered.png` | Stitchから保存したスクリーンショットと、パーツ番号を描画したもの |
+| `{画面名}.md`（例: home.md） | CRUDの概念がない単一画面の設計書。関連画面・関連API・採番済みスクリーンショット・パーツ一覧・状態一覧（空/エラー/ローディング）・レスポンシブ差分・採用した方向性・仕様外要素・更新履歴を記載（[_template.md](./_template.md)参照） |
+| `{画面名}-list.md` / `-create.md` / `-edit.md` / `-delete.md`（例: categories-list.md） | 一覧・新規作成・編集・削除が別々に存在する画面の設計書。1ファイルに混在すると読みづらいため、2026-06-22にCRUD単位で分割した（[_template.md](./_template.md)冒頭のコメント参照）。各CRUDファイルは画面固有のフォーム項目・業務ロジックのみを記載し、Dialog/AlertDialogの見た目の共通フレームワークは[modals.md](./modals.md)を参照する |
+
+## 全体状況
+
+機能画面（ホーム・取引記録・カテゴリ管理・家族構成管理・本格的アドバイス）・共通パーツ・主要モーダル・プロフィール設定（オンボーディング）の方向性はStitch上で固まっている。現行版のスクリーンショットは`docs/design/screenshots/`に保存済みで、機能仕様と突き合わせた差分は[style-guide.mdの差分チェック結果](./style-guide.md#現行スクリーンショットと仕様の差分チェック結果再生成前に必読)にまとめてある。**現在Stitchプロジェクト内が重複・旧版で煩雑になっているため、`style-guide.md`のルールに沿って確定版を作り直す予定**（ユーザーのgoサインが出るまで実施しない）。
+
+**2026-06-22追記**: 取引記録画面の再生成中に、同一画面内のタブ（「一覧」/「定期取引」）でテーブル行・タブのコンポーネントの見た目が別物になる不整合が発覚した（[style-guide.mdの差分チェック結果](./style-guide.md#現行スクリーンショットと仕様の差分チェック結果再生成前に必読)参照）。原因は[コンポーネントカタログ](./common-components.md)にテーブル行・タブ・メンバーチップの定義がなかったこと。対応として、**カラーカタログから全画面をもう一度作り直す**（ユーザー判断）。状態パターン（タブ切替・フィルタ適用等）の生成方法も、`generate_screen_from_text`でのゼロからの再構築ではなく、確定済みの基準スクリーンを元に`generate_variants`（`creativeRange: REFINE`）でスタイルを引き継ぐ方式に変更する（[style-guide.mdの画面パターン・状態デザインの方針](./style-guide.md#画面パターン状態デザインの方針2026-06-22決定)参照）。これにより、下表で過去に「確定」としていたカラーカタログ・コンポーネントカタログ・ホーム・取引記録も含めて再生成待ちの状態に戻る。
+
+- **アプリ名**: 「かけぼ」に決定済み
+- **Stitchプロジェクト**: `projectId: 4767028127555592417`（タイトル「家計簿アプリ（Kakeibo App）」）
+- **デザインシステム**: `assets/4009687132338552144`（displayName「かけぼ」）。`generate_screen_from_text`呼び出し時は必ず`designSystem`パラメータにこのIDを指定すること
+
+## 次にやること
+
+確定版の再生成は、**土台となるパーツから個別画面の順**で行う。共通パーツ（特にヘッダー）が通知アイコン等の仕様外要素を含んだまま生成され、それを参照した個別画面に伝播した経緯があるため（[style-guide.mdの差分チェック結果](./style-guide.md#現行スクリーンショットと仕様の差分チェック結果再生成前に必読)参照）、この順序を守ることで同じ手戻りを避ける。
+
+1. **（ユーザーのgo待ち）** [style-guide.md](./style-guide.md)を読み直し、以下の順で**全画面をカラーカタログから作り直す**（2026-06-22のテーブル/タブ不整合発覚を受けて、ホーム・取引記録など既に「確定」としていた画面も含めて作り直す方針に変更）
+   1. **カラーカタログ**: プライマリ・支出/収入/収支・アクセントカラーの配色見本を1画面にまとめたリファレンス
+   2. **コンポーネントカタログ**（[common-components.md](./common-components.md)の再生成）: ヘッダー（通知アイコンを除去）・下部ナビ・FAB（ポップアップ文言は「手入力で作成」「レシートから作成」）に加えて、**テーブル行・タブ・メンバーチップのコンポーネントを新規に定義する**（取引記録のタブ間で見た目が別物になった問題への対応。[style-guide.mdの共通レイアウト](./style-guide.md#共通レイアウト)参照）
+   3. 個別機能画面（ホーム→取引記録→カテゴリ管理→家族構成管理→本格的アドバイス→プロフィール設定の順。カラーカタログ・コンポーネントカタログを参照させる）。**タブ切替・フィルタ適用等の状態パターンは`generate_screen_from_text`ではなく`generate_variants`で基準スクリーンから生成する**（[style-guide.mdの画面パターン・状態デザインの方針](./style-guide.md#画面パターン状態デザインの方針2026-06-22決定)参照）
+   4. モーダル・確認ダイアログ（[modals.md](./modals.md)）。✅ 2026-06-22に全7パターン（FAB2択ポップアップ含む）を再生成・新規作成し確定済み
+   - 再生成後、人間が見て確定版だと分かるよう各確定スクリーンに赤枠の視覚マーカーを追加する
+2. 確定後、各画面のスクリーンショットをPC/SP分`docs/design/screenshots/`に再保存する（現行版の上書き）
+3. 保存したスクリーンショットにPillowでパーツ番号（①②③…）を描画し、`*-numbered.png`として保存する
+4. [_template.md](./_template.md)を元に、番号と対応する「パーツ一覧」表を含む画面設計書を作成・更新する
+5. 本ファイルの[画面一覧](#画面一覧)にサムネイル・ステータスを反映する
+6. ランディングページ（トップページ）を、確定済みの各画面スクリーンショット・配色を使って新規に作る。✅ 2026-06-22に新規作成し確定済み
+7. Stitch管理画面（Web UI）で、重複・旧版スクリーンを手動削除する（MCPに削除APIが存在しないため）
+8. **（デフォルト手順、2026-06-22更新）** 番号付け確定後は、その都度元の番号なし画像（状態パターンの画像も含む）を削除する。全画面完成を待つ一括整理ではなく、画面ごとに行う（[screen-design-docスキルの該当節](../../.claude/skills/screen-design-doc/SKILL.md#元画像の削除番号付け確定後デフォルト)・[design-docs-tooling.md](../architecture/decisions/design-docs-tooling.md#画面設計書運用stitch)参照）
+
+### 今回（2026-06-22 `/grill-me`セッション）追加で決まったタスク
+
+`go`サイン後、以下を優先度順に実施する。
+
+1. ✅ **取引先（transaction-parties）4画面の新規生成**（2026-06-22完了）: `transaction-parties-list.md`・`-create.md`・`-edit.md`・`-delete.md`。一覧はカテゴリ一覧PC/SPを基準に`generate_variants`、新規登録・編集は名前のみのDialog（家族メンバー追加Dialog基準）、削除は既存AlertDialogパターン（カテゴリ削除確認基準）を踏襲（[transaction-parties.md](../specs/features/transaction-parties.md)参照）
+2. ✅ **カテゴリ一覧への「カテゴリ/取引先」親タブ追加**（2026-06-23完了）: `categories-list.md`のPC/SP確定版を基準に`generate_variants`。子カテゴリの開閉トグル（ツリー線付き、初期展開）も反映
+3. ✅ **取引登録フォームへの取引先導線追加**（2026-06-23完了、PCのみ。SP版は元々未生成のため対象外）: `transactions-create.md`の単発モードPC。取引先コンボボックス・カテゴリ編集アイコン・行チェックボックス・一括設定フォーム（取引日・カテゴリ・取引先）を追加
+4. ✅ **取引一覧の選択中バー・一括編集パネル**（2026-06-23完了）: `transactions-list.md`。ヘッダー全選択チェックボックス・「N件選択中」バー・インライン展開の一括編集パネルを追加
+5. ✅ **取引編集Dialog・一括削除確認AlertDialogの新規生成**（2026-06-23完了）: `transactions-edit.md`参照。一括削除確認には対象取引の簡易リスト（最大3件+「他N件」）を表示
+6. ✅ **サインイン・サインアップの参考モックアップ新規生成**（2026-06-23完了）: `<SignIn />`/`<SignUp />`の構成（ロゴ・入力欄・ソーシャルログインボタン・タイトル・リンク）をStitchで再現。実装するレイアウトではなく、Clerkの`appearance` propで配色・トーンを反映する際の参考資料（[design-docs-tooling.mdの追記](../architecture/decisions/design-docs-tooling.md#画面設計書運用stitch)参照）。新規ファイル[auth.md](./auth.md)（CRUD概念のない単一画面として、サインイン/サインアップを状態パターンで管理）
+
+### 後追い採番（既存スクリーンショットへの番号付け、新規生成は不要）
+
+[元画像の削除方針](#次にやること)を全画面に統一するため、以下の既存スクリーンショットにも番号を振って`-numbered.png`化し、元画像を削除する。Stitchでの再生成は不要（既存スクリーンショットへのPillow描画のみ）。
+
+- **状態パターン・SP版**: `home-pc-child-empty-state.png`・`transactions-form-recurring-pc.png`・`transactions-pc-recurring-tab.png`・`transactions-pc-filtered.png`・`transactions-sp.png`
+- **モーダル・確認ダイアログ6件**（2026-06-22決定。`modals.md`の表形式パーツ一覧を、他画面と同じ番号ピン方式に統一）: `modal-category-add-pc.png`・`modal-category-delete-pc.png`・`modal-family-add-pc.png`・`modal-family-delete-pc.png`・`modal-self-edit-pc.png`・`modal-transaction-delete-pc.png`。`modals.md`の「パーツ一覧」を表形式からピン番号対応表に書き換える（`categories-create.md`等の各CRUDファイル側の参照リンクも更新）
+
+## カラーカタログ・共通パーツ
+
+再生成の優先順位は[次にやること](#次にやること)を参照。
+
+| パーツ | ファイル | 状態 |
+|---|---|---|
+| カラーカタログ | 未作成（[プレビュー](./screenshots/color-catalog-pc.png)あり） | **確定（再生成済み・2026-06-22）**。`screens/f41a908b999c4a64aa22145a201f0311`。プライマリ・支出/収入/収支・AIアドバイス・カテゴリ多色・削除ボタンの配色見本を1画面に整理。紫・コーラル系の混入なしを確認済み |
+| ヘッダー・下部ナビゲーション・FAB・テーブル行・タブ・メンバーチップ | [common-components.md](./common-components.md) | **確定（再生成済み・採番済み・2026-06-22）**。[採番済みプレビュー](./screenshots/common-components-pc-numbered.png)・`screens/428b6c9720c641828d287fde5f5bab7a`。テーブル行・タブ・メンバーチップを新規追加、FABポップアップ文言を「手入力で作成」「レシートから作成」に統一 |
+
+## モーダル・確認ダイアログ
+
+| ファイル | 現行プレビュー | 状態 |
+|---|---|---|
+| [modals.md](./modals.md) | [FAB2択](./screenshots/modal-fab-popup-pc.png) / [カテゴリ追加](./screenshots/modal-category-add-pc.png) / [カテゴリ削除](./screenshots/modal-category-delete-pc.png) / [家族追加](./screenshots/modal-family-add-pc.png) / [本人編集](./screenshots/modal-self-edit-pc.png) / [家族削除](./screenshots/modal-family-delete-pc.png) / [取引削除](./screenshots/modal-transaction-delete-pc.png) | **確定**（2026-06-22、全画面作り直し方針のもと7パターンを再生成・新規作成）。FAB2択ポップアップ（旧版で未作成）を新規作成、カテゴリ新規追加Dialogにアイコン・色ピッカーUIを追加、本人編集Dialogの居住地域は都道府県単一プルダウンに修正済み |
+
+## 画面一覧
+
+サムネイル画像は確定版の再生成後に`docs/design/screenshots/`を上書きする。現時点の「現行プレビュー」リンクは**再生成前のバージョン**であり、[差分チェック結果](./style-guide.md#現行スクリーンショットと仕様の差分チェック結果再生成前に必読)に記載した仕様外要素を含んだままの状態。採番済み設計書（パーツ一覧表）は再生成後に作成する。
+
+| 画面 | 設計書 | 現行プレビュー(PC) | 現行プレビュー(SP) | 状態 |
+|---|---|---|---|---|
+| トップページ（ランディングページ） | [landing.md](./landing.md) | [PC（採番済み）](./screenshots/landing-pc-numbered.png) | [SP（採番済み）](./screenshots/landing-sp-numbered.png) | **確定**（2026-06-22、新規作成）。PC: `screens/edb90ad78dab48fb94a951d6aeff94e4` / SP: `screens/d8f51952286f4904ae670a0c31dd5d34`。ヘッダー+ヒーロー+機能紹介カード4つ+最後のCTA+フッターの構成。SP版フッターにFABが混入する仕様外要素あり（[landing.md](./landing.md#仕様外要素実装時は無視すること)参照） |
+| プロフィール設定（オンボーディング） | [profile-setup.md](./profile-setup.md) | [PC（採番済み）](./screenshots/profile-setup-pc-numbered.png) | [SP（採番済み）](./screenshots/profile-setup-sp-numbered.png) | **確定**（2026-06-22、全画面作り直し方針のもと再生成）。PC: `screens/99736301e1ad487e96309ab08ba276a2` / SP: `screens/ad587bfee7ba4d70a55d18c7f201b1cd`。居住地域を都道府県のみの単一プルダウンに修正（`REGION_MAP`仕様との不整合を解消） |
+| ホーム（旧称: ダッシュボード） | [home.md](./home.md) | [PC（採番済み）](./screenshots/home-pc-numbered.png) | [SP（採番済み）](./screenshots/home-sp-numbered.png) | **確定**（2026-06-22、全画面作り直し方針のもと再生成）。PC: `screens/17e5d40f968c4016a65e4dbbc960e5ba` / SP: `screens/e249f87b01ca43da885043f9edb179f7`。状態パターン（[子スライド+空状態](./screenshots/home-pc-child-empty-state.png)）は旧基準のまま、次回`generate_variants`で作り直し予定 |
+| 取引記録 | [list](./transactions-list.md) / [create](./transactions-create.md) / [edit](./transactions-edit.md) / [delete](./transactions-delete.md) | [一覧PC（採番済み）](./screenshots/transactions-pc-numbered.png) | [一覧SP](./screenshots/transactions-sp.png) | **確定**（一覧・削除。2026-06-22、全画面作り直し方針のもと再生成）。一覧PC: `screens/4d5b89063d3d47779acd0d66eedfd024` / 一覧SP: `screens/c8163bb42e964e6eb127a5812298b056`。登録フォーム単発（2026-06-23、`/grill-me`セッション追加タスク3で取引先導線追加）: `screens/73a90c5268e54ffebde09d4829d1a40c`。状態パターン（定期取引タブ・フィルタ適用・登録フォーム定期）は`generate_variants`で基準スクリーンから生成。**登録フォーム定期モードは取引先導線追加前の旧版のまま**（[transactions-create.mdの状態パターン](./transactions-create.md#状態パターン)参照）。一覧の選択中バー・一括編集パネル（2026-06-23、`/grill-me`セッション追加タスク4）: `screens/47976376e06d4c06b4c66ebaadd42ed5`。単体編集Dialog・一括削除確認AlertDialog（2026-06-23、タスク5）: `screens/5c3994a79a1449c78f8e09d7a5a89304` / `screens/97b946ed46d14143aa79840dd0eb6c78`（[transactions-edit.md](./transactions-edit.md)参照）。レシート解析中オーバーレイ（2026-06-23、自動再開）: `screens/e2bc211d794643ed9a63e6bd4d639091`（[transactions-create.md](./transactions-create.md#状態パターン)参照、新基準での再生成は未着手）。登録フォーム本体のタブ表示「通常」化・コンボボックス統一・鉛筆アイコン制御（タスクA、2026-06-23再修正確定）: `screens/4115897f2ab34d53acce3f1851d3199b`。編集Dialogのコンボボックス統一（タスクC、2026-06-23確定）: `screens/861a57687a7646deb54ea17de37d094f`。カテゴリ選択ドロップダウン表示状態（2026-06-23）: `screens/594ffdac7aa34d26ad22c48d918b1054`（「+新しいカテゴリを追加」導線は未反映）。一覧のセル単位インライン編集（タスクD、2026-06-23確定）: `screens/9373a5bfe0e4460e849dca02ba9b2a0a`（[transactions-list.md](./transactions-list.md#セル単位インライン編集pc版)参照） |
+| カテゴリ管理 | [list](./categories-list.md) / [create](./categories-create.md) / [edit](./categories-edit.md) / [delete](./categories-delete.md) | [PC（採番済み）](./screenshots/categories-pc-numbered.png) | [SP（採番済み）](./screenshots/categories-sp-numbered.png) | **確定**（2026-06-23、`/grill-me`セッション追加タスク2）。PC: `screens/06165406bcf1486c8928fae970981671` / SP: `screens/62aefdf520444b77a88a667e1e17ed79`。子カテゴリ編集導線・独自カテゴリ・ピン留めON状態に加え、「カテゴリ/取引先」親タブと子カテゴリ開閉トグルを反映。SP版タブがピル型になっている仕様外要素あり（[categories-list.md](./categories-list.md#仕様外要素実装時は無視すること)参照） |
+| 家族構成管理 | [list](./family-members-list.md) / [create](./family-members-create.md) / [edit](./family-members-edit.md) / [delete](./family-members-delete.md) | [PC（採番済み）](./screenshots/family-members-pc-numbered.png) | [SP（採番済み）](./screenshots/family-members-sp-numbered.png) | **確定**（2026-06-22、全画面作り直し方針のもと再生成）。PC: `screens/642339c5ef824c21accef86df264b5e3` / SP: `screens/d6940c56101b486485c8181bc2ee62e8`。本人行のみ居住地域表示・続柄固定表示を反映。下部ナビ省略ラベル・SP版戻る矢印等の仕様外要素あり（[family-members-list.md](./family-members-list.md#仕様外要素実装時は無視すること)参照） |
+| 本格的アドバイス（AI機能） | [ai.md](./ai.md) | [PC（採番済み）](./screenshots/ai-pc-numbered.png) | [SP（採番済み）](./screenshots/ai-sp-numbered.png) | **確定**（2026-06-22、全画面作り直し方針のもと再生成）。PC: `screens/524cdf96f4ce405485f9816e9496490c` / SP: `screens/3a2d8acc09b14d82b734a77e2a9c4c39`。PC版のみ「役に立った/共有」フッターが表示される仕様外要素あり（[ai.md](./ai.md#仕様外要素実装時は無視すること)参照） |
+| 取引先（カテゴリ管理画面内タブ） | [list](./transaction-parties-list.md) / [create](./transaction-parties-create.md) / [edit](./transaction-parties-edit.md) / [delete](./transaction-parties-delete.md) | [PC（採番済み）](./screenshots/transaction-parties-list-pc-numbered.png) | [SP（採番済み）](./screenshots/transaction-parties-list-sp-numbered.png) | **確定**（2026-06-22、`/grill-me`セッション追加タスク1）。一覧はカテゴリ一覧PC/SP確定版、新規追加・編集Dialogは家族メンバー追加Dialog、削除確認はカテゴリ削除確認AlertDialogを基準に`generate_variants`で生成。一覧PC: `screens/03f0f2a781ea42e08880a49082a1a059` / SP: `screens/fefeb6bfee844fcfaf9b7287d81391cd` |
+| サインイン・サインアップ（Clerk参考モックアップ） | [auth.md](./auth.md) | [サインイン（採番済み）](./screenshots/auth-signin-pc-numbered.png) | 未生成 | **確定**（2026-06-25更新）。実装するレイアウトではなく、Clerkの`appearance` propで配色・トーンを反映する際の参考資料。サインイン: `screens/b688eee8d58643459f2c3ce30057dac4` / サインアップ（[状態パターン](./auth.md#状態パターン)）: `screens/2b1a822fb5044ad0b64303860034626f`（サインイン基準に`generate_variants`で再生成、フッターリンク仕様外要素を解消）。サインアップのロゴ意匠がサインインと一致していない仕様外要素は解消せず残存（既知の制約として再生成対象から除外、[auth.md](./auth.md#仕様外要素実装時は無視すること)参照） |
+
+## Stitch管理画面での削除候補（任意・手動作業）
+
+実装には影響しないが、`list_screens`の精度向上のために削除を推奨する重複・旧版スクリーン。確定版の再生成後は、再生成前の現行版もここに追加した上でまとめて削除する想定。
+
+- ホーム旧SP版: `screens/603d1615a0bd475f89e46496e0ca6415`
+- 取引記録の重複・旧版: `screens/d3cc2fafb4494424ac0dbaf974163c4f`、`screens/5b2501b6f86a4d768ea895052a171ace`、`screens/2a84a5e3b2714631993fa0abba9d7f8d`、`screens/bda28e89e3fc4bdab3c9111fe69a8b05`、`screens/dbcbfc7e81304d1d97f53ffa089abed8`
+- 取引記録の2回目生成版（全画面作り直し方針により置き換えた旧版）: `screens/f4f1593d09d3404bb7ed623b75bb9b74`（一覧PC旧）、`screens/68144f1a47354c71a388ff6b376e7521`（一覧SP旧）、`screens/cf0c07ecef164d5c99b1f5da5d43b7e4`（一覧PC重複）、`screens/b8c68c16681e4756a8630edc5e8f64be`・`screens/fac0f6a067ca498699d6b0927055b3a3`（定期取引タブ旧、テーブル/タブ不整合の原因となったバージョン）、`screens/fd871d83e1d640d6ab8d0ce6c88f3b7c`（フィルタ適用旧、FAB円形のみだった版）、`screens/36b9b84cd33e404780d34117e63100b3`・`screens/917ba8adfc3e47668f717683e72cc39c`・`screens/fd93defa38ba40b6b14f067fedeb0334`・`screens/1d414cfe4a764dba83986dd521fa2e7c`（登録フォーム旧版）
+- カテゴリ管理旧版: `screens/68082233b94044f6850b9e38fed96df2`（PC）、`screens/7357ef5b6e364e2bb16d01581caef4ac`（SP）
+- カテゴリ管理の2回目生成版（全画面作り直し方針により置き換えた旧版）: `screens/6dc52113f78d41c8b94a7cc686875b57`（PC）、`screens/5ed1721184334142b3ca26c268c7c9fa`（SP）
+- 家族構成管理旧版: `screens/7a746374f3af45ce9d009b5dc73c8418`、`screens/bdb25fe908894a5db4d7f561f89c11ab`（いずれもPC）、`screens/1c514636c61e4b0990bb5b34360093d8`（SP重複）、`screens/04fa9c08d25240e0bb6037cb9e434d1a`・`screens/e164e9dea9bc42c28e42005e818985de`（全画面作り直し方針による旧版PC/SP）
+- 家族構成管理の再生成時の不採用候補: `screens/b0c3d8cd27b2441f88794b1297135157`（本人以外の行にも居住地域が表示されていたため不採用）、`screens/fe1e9ad959964bca91e4ec091a6d94d4`（学年・世帯区分の架空項目が混入していたため不採用）、`screens/c2dcc0744d3a4156b9eb41213270cba7`（AIアドバイスバナーが混入していたため不採用）
+- 本格的アドバイス旧版: `screens/9feef284272c4d13ba6dc9681ce9edce`（PC）、`screens/be1adcf92e864a00a7f111d53abd2258`（PC、全画面作り直し方針による旧版）、`screens/923d7d0348704d02a3415a15be71dac0`（SP、同旧版）
+- 本格的アドバイスの再生成時の不採用候補: `screens/a5a1e9fc98d74aa681df322c9150a301`（タイトルが「本格的なアドバイス」と微妙に異なるため不採用）、`screens/ee1ae6731a1f49c9819720818b9f7225`（英語表記「Kakebo AI分析」が混入していたため不採用）
+- プロフィール設定旧版: `screens/62c00364276842e4bd7baa3a6d82d139`（PC、居住地域が都道府県+市区町村の2段階選択だった旧版）、`screens/1ff129b2f55a448aa69c0aaba4d8e90a`（SP、同旧版）
+- プロフィール設定の再生成時の不採用候補: `screens/288577e8602d419baea292e3cce09c0f`（SP、「はじめる」ボタンがHTML上に欠落していたため不採用）
+- モーダル・確認ダイアログ旧版: `screens/cfe3b9cbf7e54ff9977ad6b6241c17ca`（カテゴリ新規追加、アイコン・色選択UI未確認の版）、`screens/61bddb6de30542c381ffce16ce029329`（カテゴリ削除確認）、`screens/b6a954d43bd24acda9bdebae1d63a1e4`（家族メンバー追加）、`screens/b71ca24f69c8472a8cf5b51854727c37`（本人情報編集）、`screens/7f267f3292174fb2a37e636af103814a`（家族メンバー削除確認）、`screens/9af24c5ce25b4a0ba5a8cc009290ab6d`（取引削除確認）
+- モーダル再生成時の不採用候補: `screens/8e72205526b047929798cd6abca3c47f`（カテゴリ新規追加、背景にロゴが混入していたため不採用）、`screens/c37c167eeca74387835e81f9238fcc8b`（FAB2択ポップアップ、opacity:0で非表示のままスクリーンショットされたため不採用）
+- 旧ランディングページ関連: `screens/a546ecac6ec94b59b8f501ab219ed4b0`、`screens/ea0cdb4bd3cb4cd68bd866c4f7b6beaa`、`screens/f4bd7a9912574a3a831d7190b15f3f5e`、`screens/491f61f73ed64d038d66f383c17cb477`、`screens/e779479e8cb64cd7b007aea87320e14c`、`screens/6f7bc011a99247588d49b30e672ee03f`、`screens/8851445f985244c0a0395135385c5053`、`screens/aeebd40bb05f438184f4c8d0e23ae622`
+- ランディングページの再生成時の不採用候補: `screens/bff2c9c862f34cc597d36378f4105d7b`（PC、指示外の追加バナーセクションが混入していたため不採用）、`screens/5c1cf04d61fa459bab4451a29f582901`（PC、「10,000人以上のご家族が利用中」という誇張統計と英語表記「Kakebo (かければ)」が混入していたため不採用）、`screens/d30adcd697744581844ea447dabff43c`（SP、ヘッダーにログインリンクがなく誇張バッジが混入していたため不採用）
+- カラーカタログの初回生成版（紫スウォッチが混入し、`edit_screens`での修正が反映されなかったため作り直した旧版）: `screens/f13f937958f84f70be58688cf6a41d12`
+- カラーカタログの2回目生成版（全画面作り直し方針により`screens/f41a908b999c4a64aa22145a201f0311`に置き換えた旧版）: `screens/15b8423a83a542ed8fb92c5579984a1a`
+- コンポーネントカタログの旧版（通知アイコン・フッターブランド表記を含んでいたため作り直した）: `screens/6dc6fa7fe4f5440394ca9fdcbbbc3dda`
+- コンポーネントカタログの2回目生成版（テーブル行・タブ・メンバーチップ未定義のため`screens/428b6c9720c641828d287fde5f5bab7a`に置き換えた旧版）: `screens/1d724c480c70455c96d68402c4e40ba8`
+- ホームの旧版: `screens/71c6840b89f64eefbbcce4c60bde6d10`（PC）、`screens/1a164ab6a3124d8b907a146a21b29`（SP）
+- ホームの2回目生成版（全画面作り直し方針により`screens/17e5d40f968c4016a65e4dbbc960e5ba`・`screens/e249f87b01ca43da885043f9edb179f7`に置き換えた旧版）: `screens/702f3f2bfb944a36a89bca97513a5e31`（PC）、`screens/37dc1e8a7c234abfaf2224cefb7237ac`（SP）
+- 取引編集ダイアログの不採用候補（`screens/5c3994a79a1449c78f8e09d7a5a89304`を採用）: `screens/3b9f2d9e01184f65a1e59245e1b8afd9`、`screens/f71de715e83841b0aa55449877279d48`（いずれも「かけぼ (PC版)」）、`screens/6908952264db4be8a8a04e3aaa615a06`（「案2 (モダン)」）
+- 一括削除確認ダイアログの不採用候補（`screens/97b946ed46d14143aa79840dd0eb6c78`を採用）: `screens/4fca531aa5e14ca39595c322ba708438`（案2 セパレートリスト）、`screens/32388b45c496411a895d12276f69abf2`（複数選択対応案）、`screens/3f02a7969fd54ed68cf23d7af507e41d`・`screens/089533bca5f74cd78c349b9891f7a2f6`（案1 シンプルリスト）、`screens/81a52e85ccd14098a0e6c64920eb9cb4`（案2重複）、`screens/2a63b48556724a889fff7d630e7856fa`（PC版・複数選択、重複）。いずれもタイムアウト後の短間隔リトライにより裏側で重複生成されたもの（[style-guide.mdの既知の制約](./style-guide.md#stitch運用上の既知の制約次回大規模生成時の参考)参照）
+- サインインの不採用候補（`screens/b688eee8d58643459f2c3ce30057dac4`を採用）: `screens/f5f91eec0639440f9832e5e51ac08ff9`、`screens/9d4cb6f947744c4c9fb2684a5e97d86f`、`screens/58345b4475914df5a44095a8d057e9e1`（ロゴが吹き出しアイコンになっていたため不採用）、`screens/7e179328ab7a4ca69c937389e417199a`、`screens/67f804940b9d4a5096fc9dbac6937ca7`。同様にタイムアウト後の短間隔リトライによる重複生成
+- サインアップの不採用候補（`screens/2b1a822fb5044ad0b64303860034626f`を採用）: `screens/a4168fdd59da4076bcbc653c62879a9d`（2026-06-23時点の旧採用版、フッターリンクが仕様外で2026-06-25に置き換え）、`screens/f65923ce32eb4a70b50c10b6805feb4b`（同ロゴで採用案とほぼ同一）、`screens/f0b6868d8eb046f2b16090a6a398f810`（ロゴ位置がカード外で意匠が異なる案）
+- 取引登録フォーム「タスクA」の不採用候補（最終採用: `screens/4115897f2ab34d53acce3f1851d3199b`）: `screens/cfd2485425914a26bd7663b774cb7228`・`screens/152f76dd0fec418fac06053b4f8c4761`（未選択の取引先欄にも鉛筆アイコンが残っていたため不採用）、`screens/5f248fef0e83494997de40cbcffd1514`・`screens/a1a93846de4245c1bcc6e14582e75342`・`screens/18cef69f220f47c7a22a39d6e4f10b0a`（採用案とほぼ同一の重複）、`screens/9146410de9734006a1875418e75c8f9c`（同上）、`screens/f65f533d416441bb9039e1a72ba27587`（一旦確定したが取引先の鉛筆アイコン非表示の確認漏れが見つかり再修正のため不採用）、`screens/9114f6b60ccb439d889d1abb5f44413d`・`screens/4c558f13872c43859bb0d43f60355a2f`（鉛筆アイコンの表示/非表示が行ごとに不統一だったため不採用）
+- 取引編集Dialog「タスクC」の不採用候補（`screens/861a57687a7646deb54ea17de37d094f`を採用）: `screens/38f14a33bbe24de394868991cc633688`（採用案とほぼ同一の重複）、`screens/6b8712a9efa049d194f22f5340021311`・`screens/1169b4dac4684e61bf9599949adf1eb5`・`screens/9cb52a25f86c426f99a5e8d9b52cb299`（「案1」、コンボボックス未統一の旧版重複）、`screens/3526d993ec5c4d048b415b6ff4b1a488`・`screens/332078ad7c144b789fcc2594055e102d`・`screens/65c6df37bc034140920e67df1a70cd2f`（「案2」、コンボボックス未統一の旧版重複）
+- 取引一覧「タスクD」セル単位インライン編集の不採用候補（`screens/9373a5bfe0e4460e849dca02ba9b2a0a`を採用）: `screens/67dd40b2282245268d057cb8b8a5cda0`・`screens/9b3823e1e77c4db0ac894f2f83b287b4`・`screens/d8822e2f39354b8290cf5f9c329b11cb`・`screens/26b9bfe2d7264c9ea2402272ba0e1b76`・`screens/e2eaf2f95d2b470c912bce988de59f36`・`screens/da63c1038af443199c2dee953fdd26ab`・`screens/f7a8444a846d4c55ba5bdcf0a561e2f8`（採用案とほぼ同一の重複、入力欄の枠の見た目がわずかに異なるのみ）
+- カテゴリ選択ドロップダウンへの「+新しいカテゴリを追加」導線追加の不採用候補（未だ採用版なし、課題未解消）: `screens/44958c2bff724cc699f3e4f2f6207c5b`・`screens/a7e1af67ca0541f39ef8318a0b9aba97`・`screens/8ac6fad1dafd48ed8126820a643cb8da`・`screens/ef4943bd55ba48239419378942020b9f`・`screens/d77b1180281c40feb3e432947d0c3b19`・`screens/5adbc1fd5fe24e178ce9129b0609edaf`（変更前と完全に同一の無変更画像）、`screens/9caa4eed5d8a4c559773a645c3cb2a81`・`screens/36a0ea950217412590fa9c357e1a22be`（候補リストの4件目に別カテゴリ「娯楽費」を追加しただけで要求と異なる）
+
+## サインイン・サインアップについて
+
+Clerk提供UIをそのまま使用するため、実装するカスタムレイアウトとしてのStitchモックアップ作成は対象外。一方、`appearance` propでの配色・トーン反映の見た目の参考資料として、`<SignIn />`/`<SignUp />`の構成を再現した参考モックアップを[auth.md](./auth.md)で管理する（2026-06-22追記、[architecture/decisions/design-docs-tooling.md](../architecture/decisions/design-docs-tooling.md#画面設計書運用stitch)参照）。
