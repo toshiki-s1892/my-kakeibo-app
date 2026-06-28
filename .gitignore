@@ -29,9 +29,6 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# MCP server config may contain API keys
-.mcp.json
-
 # turbo
 .turbo
 
