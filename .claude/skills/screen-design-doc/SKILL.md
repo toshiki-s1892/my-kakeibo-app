@@ -7,7 +7,7 @@ Stitchで作成した画面モックアップを元に、`docs/design/_template.
 
 **ファイル名・分割方針（2026-06-22決定）**: 一覧・新規作成・編集・削除のうち2つ以上が存在する画面は`docs/design/{画面名}-list.md`・`{画面名}-create.md`・`{画面名}-edit.md`・`{画面名}-delete.md`に分割する（詳細は[_template.md](../../../docs/design/_template.md)冒頭のコメント参照）。CRUDの概念がない単一画面（home・ai・landing・profile-setup等）は分割せず`{画面名}.md`のままでよい。Dialog/AlertDialogの見た目の共通フレームワークは[modals.md](../../../docs/design/modals.md)を参照し、各CRUDファイルには画面固有のフォーム項目・業務ロジックのみを記載する。
 
-このSkillは[categories-list.mdの試作](../../../docs/design/categories-list.md)で検証済みの手順を一般化したもの。実例として参照してよい（categories関連ファイルは再生成待ちで内容は書き変わる予定だが、フォーマット・節構成の参考としては有効）。
+このSkillは[categories-list.mdの試作](../../../docs/design/categories/list.md)で検証済みの手順を一般化したもの。実例として参照してよい（categories関連ファイルは再生成待ちで内容は書き変わる予定だが、フォーマット・節構成の参考としては有効）。
 
 **複数画面をまとめて生成してから最後にこのSkillでまとめて設計書を書く、という進め方はしない**。[`stitch-screen-mockup`スキル](../stitch-screen-mockup/SKILL.md)側で1画面の確定スクリーンショットが`docs/design/screenshots/`に保存できた時点で、次の画面の生成に進む前にこのSkillを呼んで設計書を仕上げる（2026-06-22ユーザー指示）。
 
