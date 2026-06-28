@@ -13,7 +13,9 @@ users
 categories
   id, userId → users.id（NULL = システムデフォルト）, typeCode, name
   parentId → categories.id（自己参照・1階層のみ。グラフ集計時に子の金額を親に合算する）
+  isDefaultPinTarget（デフォルトカテゴリのみtrue。プロフィールセットアップ完了時にどの3件をピン留めするか判定するためのフラグ。ユーザー作成カテゴリは常にfalse。`id`は固定UUIDにせず他テーブルと同様自動生成のままで良い理由はspecs/features/categories.md参照）
   createdAt, deletedAt
+  ※ (userId, typeCode, name) に部分一意制約（deletedAt IS NULLの行のみ対象。論理削除済みの名前は再利用可能にするため）。自分の既存カテゴリ同士の重複に対するDB側の防御層（competing requestによる事故防止）。システムデフォルト（userId IS NULL）との重複はuserIdが異なるため別タプルとなりこの制約ではカバーできず、アプリ層での判定が必須
 
 category_pins
   id, userId → users.id, categoryId → categories.id, createdAt

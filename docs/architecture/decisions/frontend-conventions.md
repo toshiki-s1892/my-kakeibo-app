@@ -10,7 +10,7 @@
 **運用方針:**
 - orval の生成コードは `lib/api/generated/` に出力し、手書きコードと明確に分離する（手動編集禁止）
 - `QueryClientProvider` は `components/provider.tsx` に `'use client'` で定義し、`app/layout.tsx` の `<body>` 内で全体を囲む
-- orval設定は `mock: true` とする（Vitest導入時にMSWと組み合わせてモックサーバーとして使用する想定）
+- orval設定は `mock: true` とする。`features/*/hooks/`のフックテスト（MSWと組み合わせる）で使用する。具体的な運用方針は[testing-strategy.mdのフックテストのMSWモック方針](./testing-strategy.md#フックテストのmswモック方針)を参照
 
 **懸念点:** APIスキーマ変更後に `bun run generate` の実行を忘れると型と実装がズレる。スキーマ変更時は必ず実行する。
 

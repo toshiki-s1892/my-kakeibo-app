@@ -68,19 +68,33 @@
 
 **懸念点:** SQLite は書き込み並行性が低いため、同時書き込みが多い場面では PostgreSQL より劣る。ユーザー数が大幅に増えた場合は DB の移行を検討する必要がある。
 
+**再検討した代替案（不採用）:** UUID生成の簡潔さ（`gen_random_uuid()`がネイティブにある）を理由にNeon（サーバーレスPostgres）への移行を検討したが、(1) Tursoを選定した当初の「グローバル分散による低レイテンシ」という利点はこのアプリの個人・家族利用規模では元々不要、(2) 「無料運用を維持し続けたい」という要件に対し、Tursoの行数ベースの無料枠（月5億行読み取り・5GBストレージ）の方がNeonのコンピュート時間ベースの無料枠より制限に達しにくく安全、という理由でTursoを維持する結論とした。
+
 DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts`の役割分担）は[api-conventions.md](./api-conventions.md#dbクライアントの分離)を参照。
+
+**マイグレーション運用: `drizzle-kit generate` + `push`（`migrate`は不採用）**
+
+スキーマ変更は `db:generate`（マイグレーションSQLファイルを履歴として出力）→ `db:push`（schema.tsと実DBを直接diffして同期）の順で適用する。`migrations/*.sql`は変更履歴の記録用であり、実際の反映には使われない。
+
+**検討した代替案（不採用）:** `drizzle-kit migrate`（マイグレーションファイルの内容を順次適用し、適用履歴をDB側で管理する方式）を試したが、Turso（libsql HTTPドライバ）では全マイグレーションを単一の`db.transaction()`でラップする`migrate`の実装がトランザクションを正しく完了できず、無限にハングすることを実機検証で確認した。`push`はトランザクションを使わず単発リクエストの集合で適用するため、この問題が起きない。そのため`migrate`運用は不採用とし、`push`運用を維持する。
 
 ---
 
 ## ID設計: UUID（全テーブル共通）
 
-**採用ツール:** 各テーブルの主キーを `integer autoIncrement` ではなく `text`（UUID。`crypto.randomUUID()`で生成）に統一する。`users`・`categories`・`family_members`・`transactions`・`ai_usage_logs` すべてが対象。
+**採用ツール:** 各テーブルの主キーを `integer autoIncrement` ではなく `text`（UUID。`crypto.randomUUID()`で生成）に統一する。`users`・`categories`・`family_members`・`transactions`・`category_pins`・`transaction_parties`・`recurring_transactions`・`ai_advice_sessions`・`ai_advice_messages` が対象（ログ専用テーブルの例外は下記参照）。
 
 **採用理由:**
 - 連番IDをURLや`:id`パスパラメータにそのまま使うと、IDの大きさから「だいたい何件登録されているか」という業務情報が推測できてしまう。UUIDにすることでこれを避けられる
 - 「内部用の連番ID + 外部公開用UUID」のデュアルID方式も検討したが、内部結合の性能差はこのアプリの規模（個人・家族利用）では無視できるレベルのため、実装が複雑になるデュアルID方式は不採用とし、PK自体をUUIDにする方式（シンプル）を選んだ
 
 **前提として:** IDが推測困難であること自体はセキュリティ対策の主軸ではない（「隠すことによる安全」に頼らない）。**全エンドポイントで`user_id`の所有者チェックを必須とする**ことが本質的な対策であり、UUID化はその上での追加の防御層という位置付け（詳細は[security.md](./security.md#idor不正な直接オブジェクト参照対策)参照）。
+
+**実装方法:** 各テーブルのDrizzleスキーマで `text('id').primaryKey().$defaultFn(() => crypto.randomUUID())` を使い、アプリケーション側でUUIDを生成する（Drizzle公式の`$defaultFn`機能。[ドキュメント](https://orm.drizzle.team/docs/column-types/sqlite)）。
+
+**検討した代替案（不採用）:** SQLiteのDEFAULT句内で`randomblob()`・`hex()`等を組み合わせてDB側のみでUUIDを生成する方法も検討したが、可読性が著しく悪く、本プロジェクトはDBアクセスを`server/lib/`に集約するDALパターン（[api-conventions.md](./api-conventions.md)）を採用しているため生SQLによるバイパス経路が存在せず、アプリ側生成で十分と判断し不採用とした。
+
+**例外: `recurring_transaction_logs`・`ai_usage_logs`は`integer autoIncrement`を採用** — これらはCronやAI機能の利用記録・キャッシュとして内部的に生成・参照するだけのログ専用テーブルで、`id`がクライアントに公開されるAPIエンドポイントを持たない。UUID化の採用理由（URL上でのID推測防止・IDOR対策）が当てはまらないため、ログ確認時の可読性を優先しintegerのままとした。
 
 **影響範囲:**
 - `packages/db/src/schema/*.ts` の全テーブルのPK定義変更（マイグレーション必要）
@@ -125,3 +139,15 @@ DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts
 | `DETAILED_ADVICE`(3) | 本格的アドバイス | 取引データ・居住地域・年齢・家族構成を含むプロンプトを送信し、`generateContentStream`でSSEとして逐次応答 |
 
 **懸念点:** APIキーの管理に注意が必要。サーバーサイド（Honoハンドラ内）でのみ呼び出し、クライアントには公開しない。利用ログは `ai_usage_logs` テーブルに記録してコスト管理に活用する。
+
+---
+
+## ホスティング: Vercel（Hobbyプラン）
+
+**採用理由:**
+- Next.js との親和性が最良で、デプロイ・環境変数管理が容易
+- Hobbyプランが無料（個人・家族利用の想定アクセス量なら十分な範囲）
+
+**懸念点:** Hobbyプランは[非商用・個人利用に限定](https://vercel.com/docs/limits/fair-use-guidelines#commercial-usage)される。第三者向けの公開・収益化を行う場合はProプラン（$20/ユーザー/月）への切り替えが必要。
+
+**前提として:** この選定は確定事項ではなく、要件（商用展開の可否等）が変わった場合は再検討の対象とする。

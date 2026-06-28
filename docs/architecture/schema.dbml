@@ -15,24 +15,25 @@ Table family_members {
   gender_code integer [not null, note: '性別（ISO 5218）']
   birthday integer [not null, note: '誕生日（UNIX timestamp）']
   is_default boolean [not null, note: 'デフォルトメンバー。ユーザーごとに必ず1件のみtrue。取引記録フォームの初期選択に使う']
-  created_at integer [note: 'UNIX timestamp']
+  created_at integer [not null, note: 'UNIX timestamp']
+  updated_at integer [not null, note: 'UNIX timestamp']
   deleted_at integer [note: 'UNIX timestamp。NULLでない場合は論理削除済み。relationship_code=SELFは削除不可']
 }
 
 Table ai_usage_logs {
-  id varchar [pk, note: 'UUID']
+  id integer [pk, increment, note: '内部ログ専用テーブルのためUUID方針の例外（外部に公開されないため。理由はarchitecture/decisions/stack.md参照）']
   user_id varchar [not null, note: '利用したユーザー']
   feature_code integer [not null, note: '機能の種類（1: レシート読み取り, 2: 簡易支出分析, 3: 本格的アドバイス）']
   content text [note: '生成結果。featureCode=2（簡易支出分析）の1日1回キャッシュに使う。他のfeatureCodeでは未使用']
   family_member_id varchar [note: 'featureCode=2（簡易支出分析）でのみ使用。メンバーごとに1日1回キャッシュするためのキー']
-  created_at integer [note: 'UNIX timestamp。この日付で1日あたりの回数をカウント（利用制限・キャッシュ判定に使う）']
+  created_at integer [not null, note: 'UNIX timestamp。この日付で1日あたりの回数をカウント（利用制限・キャッシュ判定に使う）']
 }
 
 Table ai_advice_sessions {
   id varchar [pk, note: 'UUID']
   user_id varchar [not null]
-  topic varchar [not null, note: '選択した初期トピック（支出評価/節約アドバイス/家族構成を考慮した分析）']
-  created_at integer [note: 'UNIX timestamp']
+  topic integer [not null, note: '選択した初期トピック（1: 支出評価, 2: 節約アドバイス, 3: 家族構成を考慮した分析）']
+  created_at integer [not null, note: 'UNIX timestamp']
 }
 
 Table ai_advice_messages {
@@ -40,7 +41,35 @@ Table ai_advice_messages {
   session_id varchar [not null]
   role varchar [not null, note: 'user または assistant']
   content text [not null]
+  created_at integer [not null, note: 'UNIX timestamp']
+}
+
+Table categories {
+  id varchar [pk, note: 'UUID。デフォルトカテゴリ16件（user_id IS NULL）も他の全テーブルと同様自動生成でよい（is_default_pin_targetで参照するため固定UUIDのリテラル指定は不要）']
+  user_id varchar [note: 'NULLの場合はシステム共通のデフォルトカテゴリ。ユーザー独自カテゴリの場合は作成者のユーザーID']
+  type_code integer [not null, note: '1: 支出(Expense), 2: 収入(Income)']
+  name varchar(50) [not null, note: 'カテゴリ名（例: 食費, お給料, 推し活費など）。同タイプ内でシステムデフォルト含め重複不可']
+  icon varchar [not null, note: 'lucide-reactのアイコン名（例: Utensils）。キュレーションした一覧から選択。アップロードは不可。未選択時はデフォルトアイコン（Tag）']
+  color varchar [not null, note: 'キュレーションした色キー（例: orange）。8〜10色程度のパステルスウォッチから選択。RGB等の自由入力は不可。アイコン選択時に自動プリセットされ、未上書きならそのまま使用']
+  parent_id varchar [note: '親カテゴリ（自己参照・1階層のみ）。ダッシュボードのグラフ集計時に子の金額を親に合算する。親はtype_codeが一致し、かつ自身が子を持たないカテゴリのみ指定可能']
+  is_default_pin_target boolean [not null, default: false, note: 'デフォルトカテゴリ（住まいの費用・食費・光熱費）のみtrue。プロフィールセットアップ完了時のcategory_pins自動INSERTで対象を特定するためのフラグ。ユーザー作成カテゴリは常にfalse']
   created_at integer [note: 'UNIX timestamp']
+  deleted_at integer [note: 'UNIX timestamp。NULLでない場合は論理削除済み。システムデフォルトは削除不可']
+
+  indexes {
+    (user_id, type_code, name) [unique, note: 'deleted_at IS NULLの行のみ対象の部分インデックス。自分の既存カテゴリ同士の名前重複に対するDB側の防御層。システムデフォルト（user_id IS NULL）との重複はuser_idが異なるため別タプルとなりこの制約ではカバーできず、アプリ層での判定が必須']
+  }
+}
+
+Table category_pins {
+  id varchar [pk, note: 'UUID']
+  user_id varchar [not null, note: 'ピン留めしたユーザー（デフォルトカテゴリは全ユーザー共有の1行のため、ピン留めはユーザー単位の中間テーブルで管理する）']
+  category_id varchar [not null]
+  created_at integer [note: 'UNIX timestamp']
+
+  indexes {
+    (user_id, category_id) [unique]
+  }
 }
 
 Table transactions {
@@ -57,35 +86,13 @@ Table transactions {
   updated_at integer [note: 'UNIX timestamp']
 }
 
-Table categories {
-  id varchar [pk, note: 'UUID']
-  user_id varchar [note: 'NULLの場合はシステム共通のデフォルトカテゴリ。ユーザー独自カテゴリの場合は作成者のユーザーID']
-  type_code integer [not null, note: '1: 支出(Expense), 2: 収入(Income)']
-  name varchar(50) [not null, note: 'カテゴリ名（例: 食費, お給料, 推し活費など）。同タイプ内でシステムデフォルト含め重複不可']
-  icon varchar [not null, note: 'lucide-reactのアイコン名（例: Utensils）。キュレーションした一覧から選択。アップロードは不可。未選択時はデフォルトアイコン（Tag）']
-  color varchar [not null, note: 'キュレーションした色キー（例: orange）。8〜10色程度のパステルスウォッチから選択。RGB等の自由入力は不可。アイコン選択時に自動プリセットされ、未上書きならそのまま使用']
-  parent_id varchar [note: '親カテゴリ（自己参照・1階層のみ）。ダッシュボードのグラフ集計時に子の金額を親に合算する。親はtype_codeが一致し、かつ自身が子を持たないカテゴリのみ指定可能']
-  created_at integer [note: 'UNIX timestamp']
-  deleted_at integer [note: 'UNIX timestamp。NULLでない場合は論理削除済み。システムデフォルトは削除不可']
-}
-
-Table category_pins {
-  id varchar [pk, note: 'UUID']
-  user_id varchar [not null, note: 'ピン留めしたユーザー（デフォルトカテゴリは全ユーザー共有の1行のため、ピン留めはユーザー単位の中間テーブルで管理する）']
-  category_id varchar [not null]
-  created_at integer [note: 'UNIX timestamp']
-
-  indexes {
-    (user_id, category_id) [unique]
-  }
-}
-
 Table transaction_parties {
   id varchar [pk, note: 'UUID']
   user_id varchar [not null, note: '常に自分が作成したものだけが存在する（システムデフォルトを持たない）']
   type_code integer [not null, note: '1: 支出(Expense), 2: 収入(Income)。categoriesのtype_codeと同じ値セット']
   name varchar(50) [not null, note: '取引先名（同一ユーザー・同一タイプ内で重複不可）']
-  created_at integer [note: 'UNIX timestamp']
+  created_at integer [not null, note: 'UNIX timestamp']
+  updated_at integer [not null, note: 'UNIX timestamp']
   deleted_at integer [note: 'UNIX timestamp。NULLでない場合は論理削除済み']
 }
 
@@ -100,17 +107,18 @@ Table recurring_transactions {
   recurring_day integer [not null, note: '実行日（1〜31）。その月に存在しない日付は月末日に調整']
   start_date integer [not null, note: 'UNIX timestamp。この日以降の発生分から生成']
   end_date integer [note: 'UNIX timestamp。NULLなら無期限']
-  memo varchar(255)
-  created_at integer [note: 'UNIX timestamp']
+  description varchar(255)
+  created_at integer [not null, note: 'UNIX timestamp']
+  updated_at integer [not null, note: 'UNIX timestamp']
   deleted_at integer [note: 'UNIX timestamp。NULLでない場合は論理削除済み（停止）。新規生成のみ止まり、生成済みのtransactionsは残る']
 }
 
 Table recurring_transaction_logs {
-  id varchar [pk, note: 'UUID']
+  id integer [pk, increment, note: '内部ログ専用テーブルのためUUID方針の例外（外部に公開されないため。理由はarchitecture/decisions/stack.md参照）']
   recurring_transaction_id varchar [not null, note: 'テンプレートID']
-  scheduled_date varchar [not null, note: 'その回の発生日']
+  scheduled_date integer [not null, note: 'その回の発生日（UNIX timestamp）。createdAtと比較した処理遅延の検知等に使うためtimestamp型を採用']
   generated_transaction_id varchar [note: '生成したtransactionsのID。ユーザーが後で削除した場合はNULLになるが、このログ行自体は残す']
-  created_at integer [note: 'UNIX timestamp（Cronによる処理日時）']
+  created_at integer [not null, note: 'UNIX timestamp（Cronによる処理日時）']
 
   indexes {
     (recurring_transaction_id, scheduled_date) [unique, note: 'Cronの二重実行による重複生成を防ぐ']
