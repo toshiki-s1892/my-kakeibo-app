@@ -1,0 +1,19 @@
+pre-commit:
+  parallel: true
+  commands:
+    lint-web:
+      run: bunx eslint --max-warnings 0 {staged_files}
+      root: 'apps/web/'
+      glob: '*.{ts,tsx}'
+    format:
+      run: bunx prettier --write {staged_files}
+      glob: '*.{ts,tsx,md}'
+      stage_fixed: true
+    test-web:
+      run: bunx vitest related --run {staged_files}
+      root: 'apps/web/'
+      glob: '*.{ts,tsx}'
+    test-common:
+      run: bunx vitest related --run {staged_files}
+      root: 'packages/common/'
+      glob: '*.{ts,tsx}'

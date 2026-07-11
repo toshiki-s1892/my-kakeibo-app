@@ -12,6 +12,7 @@
     "matt-meyers.vscode-dbml",
     "bocovo.dbml-erd-visualizer",
     "dbdiagram.dbdiagram-vscode",
-    "Vercel.turbo-vsc"
+    "Vercel.turbo-vsc",
+    "vitest.explorer"
   ]
 }

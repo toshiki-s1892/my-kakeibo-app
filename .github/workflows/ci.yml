@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: パッケージマネージャーをセットアップ
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: 依存パッケージをインストール
+        run: bun install
+
+      - name: lint を実行
+        run: bun run lint
+
+      - name: 型チェックを実行
+        run: bun run check-types
+
+      - name: ユニットテストを実行
+        run: bun run test
+
+      - name: Playwright ブラウザをインストール
+        run: bunx playwright install --with-deps
+        working-directory: apps/web
+
+      - name: E2E テストを実行
+        run: bun run test:e2e
+        working-directory: apps/web
+
+      - name: Playwright レポートをアップロード
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 30

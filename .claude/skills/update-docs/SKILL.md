@@ -3,7 +3,7 @@ name: update-docs
 description: 会話で確定した仕様・設計・技術的意思決定をdocs/およびCLAUDE.mdに反映する。
 ---
 
-会話の中で確定した仕様・設計・技術的意思決定を `docs/` および `.claude/CLAUDE.md` に反映する。
+会話の中で確定した仕様・設計・技術的意思決定を `docs/`・ルート `README.md`・`.claude/CLAUDE.md` に反映する。
 
 ## 手順
 
@@ -25,15 +25,16 @@ description: 会話で確定した仕様・設計・技術的意思決定をdocs
 
 ## 対象ドキュメント
 
-| ファイル | 記載内容 |
-|---|---|
-| `docs/README.md` | ディレクトリマップ・更新先の対応表 |
-| `docs/specs/product.md` | プロダクト全体の要件 |
-| `docs/specs/overview.md` | 画面一覧・API概要・コード値・バリデーション規則 |
-| `docs/specs/features/*.md` | 機能ごとの詳細仕様 |
-| `docs/architecture/overview.md` | システム構成・ディレクトリ構成・画面レイアウトの決定 |
-| `docs/architecture/decisions/*.md` | 技術的意思決定・実装規約（テーマ別: stack/api-conventions/frontend-conventions/security/testing-strategy/dev-workflow/design-docs-tooling） |
-| `docs/architecture/database.md`・`schema.dbml` | DBスキーマ |
-| `docs/design/` | 画面モックアップ・画面設計書 |
-| `docs/tasks/features/*.md`・`docs/tasks/cross-cutting/*.md` | 実装タスクの進捗 |
-| `.claude/CLAUDE.md` | Claudeの作業ルール・スタイルガイド・importする`docs/`ファイル一覧 |
+| ファイル                                                    | 記載内容                                                                                                                                    |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| ルート `README.md`                                          | 人間向けの入口情報（セットアップ手順・コマンド一覧・開発フロー図・技術スタック・ドキュメント一覧）。変更が生じたら適宜追記・更新する        |
+| `docs/README.md`                                            | ディレクトリマップ・更新先の対応表                                                                                                          |
+| `docs/specs/product.md`                                     | プロダクト全体の要件                                                                                                                        |
+| `docs/specs/overview.md`                                    | 画面一覧・API概要・コード値・バリデーション規則                                                                                             |
+| `docs/specs/features/*.md`                                  | 機能ごとの詳細仕様                                                                                                                          |
+| `docs/architecture/overview.md`                             | システム構成・ディレクトリ構成・画面レイアウトの決定                                                                                        |
+| `docs/architecture/decisions/*.md`                          | 技術的意思決定・実装規約（テーマ別: stack/api-conventions/frontend-conventions/security/testing-strategy/dev-workflow/design-docs-tooling） |
+| `docs/architecture/database.md`・`schema.dbml`              | DBスキーマ                                                                                                                                  |
+| `docs/design/`                                              | 画面モックアップ・画面設計書                                                                                                                |
+| `docs/tasks/features/*.md`・`docs/tasks/cross-cutting/*.md` | 実装タスクの進捗                                                                                                                            |
+| `.claude/CLAUDE.md`                                         | Claudeの作業ルール・スタイルガイド・importする`docs/`ファイル一覧                                                                           |

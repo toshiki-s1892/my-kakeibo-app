@@ -10,5 +10,9 @@
     "source.fixAll.eslint": "explicit"
   },
   // TypeScriptのSDKのパスを指定
-  "js/ts.tsdk.path": "apps/web/node_modules/typescript/lib"
+  "js/ts.tsdk.path": "apps/web/node_modules/typescript/lib",
+  // package.jsonからの自動インポートを有効にする設定
+  "js/ts.preferences.includePackageJsonAutoImports": "on",
+  // 自動インポートの提案を有効にする設定
+  "js/ts.suggest.autoImports": true
 }
