@@ -61,12 +61,6 @@
         "y": -345.158896962457
       },
       {
-        "name": "category_pins",
-        "schemaName": "public",
-        "x": 407.7201869983378,
-        "y": 567.0836075831885
-      },
-      {
         "name": "transaction_parties",
         "schemaName": "public",
         "x": -11.095888612887109,
@@ -299,36 +293,6 @@
         "secondTableName": "transactions",
         "secondSchemaName": "public",
         "secondRelation": "1",
-        "checkPoints": []
-      },
-      {
-        "firstFieldNames": [
-          "id"
-        ],
-        "firstTableName": "users",
-        "firstSchemaName": "public",
-        "firstRelation": "1",
-        "secondFieldNames": [
-          "user_id"
-        ],
-        "secondTableName": "category_pins",
-        "secondSchemaName": "public",
-        "secondRelation": "*",
-        "checkPoints": []
-      },
-      {
-        "firstFieldNames": [
-          "id"
-        ],
-        "firstTableName": "categories",
-        "firstSchemaName": "public",
-        "firstRelation": "1",
-        "secondFieldNames": [
-          "category_id"
-        ],
-        "secondTableName": "category_pins",
-        "secondSchemaName": "public",
-        "secondRelation": "*",
         "checkPoints": []
       },
       {

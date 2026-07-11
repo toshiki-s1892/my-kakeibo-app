@@ -6,21 +6,21 @@
 
 ## 関連画面
 
-| パターン | 開く操作 | 詳細を記載しているファイル |
-|---|---|---|
-| FAB2択ポップアップ | 全画面共通の「+ 取引を追加」FABタップ（どこからでも） | [transactions-create.md](./transactions-create.md) |
-| カテゴリ新規追加Dialog | [カテゴリ管理一覧](./categories-list.md)の「新しいカテゴリを追加」ボタン | [categories-create.md](./categories-create.md) |
-| カテゴリ編集Dialog | カテゴリ行の編集アイコン（独自カテゴリのみ） | [categories-edit.md](./categories-edit.md) |
-| カテゴリ削除確認AlertDialog | カテゴリ行の削除アイコン（独自カテゴリのみ） | [categories-delete.md](./categories-delete.md) |
-| 家族メンバー追加Dialog | [家族構成管理一覧](./family-members-list.md)の「家族を追加」ボタン | [family-members-create.md](./family-members-create.md) |
-| 本人(SELF)情報編集Dialog・家族メンバー編集Dialog | 家族構成管理の各行の編集アイコン | [family-members-edit.md](./family-members-edit.md) |
-| 家族メンバー削除確認AlertDialog | 家族構成管理の本人以外の行の削除アイコン | [family-members-delete.md](./family-members-delete.md) |
-| 取引削除確認AlertDialog | [取引記録一覧](./transactions-list.md)の削除アイコン | [transactions-delete.md](./transactions-delete.md) |
-| 取引編集Dialog | [取引記録一覧](./transactions-list.md)の行クリック | [transactions-edit.md](./transactions-edit.md#単体編集) |
-| 一括削除確認AlertDialog | [取引記録一覧](./transactions-list.md)選択中バーの「一括削除」 | [transactions-edit.md](./transactions-edit.md#一括削除) |
-| 取引先新規追加Dialog | [取引先一覧](./transaction-parties-list.md)の「新しい取引先を追加」ボタン | [transaction-parties-create.md](./transaction-parties-create.md) |
-| 取引先編集Dialog | 取引先一覧の各行の編集アイコン | [transaction-parties-edit.md](./transaction-parties-edit.md) |
-| 取引先削除確認AlertDialog | 取引先一覧の各行の削除アイコン | [transaction-parties-delete.md](./transaction-parties-delete.md) |
+| パターン                                         | 開く操作                                                                  | 詳細を記載しているファイル                                       |
+| ------------------------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| FAB2択ポップアップ                               | 全画面共通の「+ 取引を追加」FABタップ（どこからでも）                     | [transactions/create.md](./transactions/create.md)               |
+| カテゴリ新規追加Dialog                           | [カテゴリ管理一覧](./categories/list.md)の「新しいカテゴリを追加」ボタン  | [categories/create.md](./categories/create.md)                   |
+| カテゴリ編集Dialog                               | カテゴリ行の編集アイコン（独自カテゴリのみ）                              | [categories/edit.md](./categories/edit.md)                       |
+| カテゴリ削除確認AlertDialog                      | カテゴリ行の削除アイコン（独自カテゴリのみ）                              | [categories/delete.md](./categories/delete.md)                   |
+| 家族メンバー追加Dialog                           | [家族構成管理一覧](./family-members/list.md)の「家族を追加」ボタン        | [family-members/create.md](./family-members/create.md)           |
+| 本人(SELF)情報編集Dialog・家族メンバー編集Dialog | 家族構成管理の各行の編集アイコン                                          | [family-members/edit.md](./family-members/edit.md)               |
+| 家族メンバー削除確認AlertDialog                  | 家族構成管理の本人以外の行の削除アイコン                                  | [family-members/delete.md](./family-members/delete.md)           |
+| 取引削除確認AlertDialog                          | [取引記録一覧](./transactions/list.md)の削除アイコン                      | [transactions/delete.md](./transactions/delete.md)               |
+| 取引編集Dialog                                   | [取引記録一覧](./transactions/list.md)の行クリック                        | [transactions/edit.md](./transactions/edit.md#単体編集)          |
+| 一括削除確認AlertDialog                          | [取引記録一覧](./transactions/list.md)選択中バーの「一括削除」            | [transactions/edit.md](./transactions/edit.md#一括削除)          |
+| 取引先新規追加Dialog                             | [取引先一覧](./transaction-parties/list.md)の「新しい取引先を追加」ボタン | [transaction-parties/create.md](./transaction-parties/create.md) |
+| 取引先編集Dialog                                 | 取引先一覧の各行の編集アイコン                                            | [transaction-parties/edit.md](./transaction-parties/edit.md)     |
+| 取引先削除確認AlertDialog                        | 取引先一覧の各行の削除アイコン                                            | [transaction-parties/delete.md](./transaction-parties/delete.md) |
 
 全体の遷移図は[architecture/screen-flow.md](../architecture/screen-flow.md)を参照。関連APIは各パターンの詳細ファイルを参照。
 
@@ -28,20 +28,20 @@
 
 すべてPC版。SP版は未生成（[仕様外要素](#仕様外要素実装時は無視すること)参照）。
 
-| パターン | コンポーネント種別 | スクリーンショット | Screen ID |
-|---|---|---|---|
-| FAB2択ポップアップ | Popover | [画像](./screenshots/modal-fab-popup-pc.png) | `screens/6eadda98419a4b339390f519ff0ce5fc` |
-| カテゴリ新規追加 | Dialog | [画像](./screenshots/modal-category-add-pc.png) | `screens/edfd5598b2d74a5f8d18d4fc350138ba` |
-| カテゴリ削除確認 | AlertDialog | [画像](./screenshots/modal-category-delete-pc.png) | `screens/804616cc5c174019995c877203c09bec` |
-| 家族メンバー追加 | Dialog | [画像](./screenshots/modal-family-add-pc.png) | `screens/ad5d2305d3144156ab8fd43bd1d24d15` |
-| 本人（SELF）情報編集 | Dialog | [画像](./screenshots/modal-self-edit-pc.png) | `screens/daa93ce80ec9400382b68dbfedf13988` |
-| 家族メンバー削除確認 | AlertDialog | [画像](./screenshots/modal-family-delete-pc.png) | `screens/6dbfc7ebdf0141abb5c21522b6ca67e3` |
-| 取引削除確認 | AlertDialog | [画像](./screenshots/modal-transaction-delete-pc.png) | `screens/439b75d3bf764c02bff7ce032f1b8d6d` |
-| 取引先新規追加 | Dialog | [画像](./screenshots/modal-transaction-party-add-pc-numbered.png) | `screens/85cb28bfe42146d4a72de9aa30df8407` |
-| 取引先編集 | Dialog | [画像](./screenshots/modal-transaction-party-edit-pc-numbered.png) | `screens/ddb322c65ea54b18bb6509478248ec83` |
-| 取引先削除確認 | AlertDialog | [画像](./screenshots/modal-transaction-party-delete-pc-numbered.png) | `screens/20956e8371fa4939a5f7d527b074811e` |
-| 取引編集 | Dialog | [画像](./screenshots/modal-transaction-edit-pc-numbered.png) | `screens/5c3994a79a1449c78f8e09d7a5a89304` |
-| 一括削除確認 | AlertDialog | [画像](./screenshots/modal-transaction-bulk-delete-pc-numbered.png) | `screens/97b946ed46d14143aa79840dd0eb6c78` |
+| パターン             | コンポーネント種別 | スクリーンショット                                                   | Screen ID                                  |
+| -------------------- | ------------------ | -------------------------------------------------------------------- | ------------------------------------------ |
+| FAB2択ポップアップ   | Popover            | [画像](./screenshots/modal-fab-popup-pc.png)                         | `screens/6eadda98419a4b339390f519ff0ce5fc` |
+| カテゴリ新規追加     | Dialog             | [画像](./screenshots/modal-category-add-pc.png)                      | `screens/edfd5598b2d74a5f8d18d4fc350138ba` |
+| カテゴリ削除確認     | AlertDialog        | [画像](./screenshots/modal-category-delete-pc.png)                   | `screens/804616cc5c174019995c877203c09bec` |
+| 家族メンバー追加     | Dialog             | [画像](./screenshots/modal-family-add-pc.png)                        | `screens/ad5d2305d3144156ab8fd43bd1d24d15` |
+| 本人（SELF）情報編集 | Dialog             | [画像](./screenshots/modal-self-edit-pc.png)                         | `screens/daa93ce80ec9400382b68dbfedf13988` |
+| 家族メンバー削除確認 | AlertDialog        | [画像](./screenshots/modal-family-delete-pc.png)                     | `screens/6dbfc7ebdf0141abb5c21522b6ca67e3` |
+| 取引削除確認         | AlertDialog        | [画像](./screenshots/modal-transaction-delete-pc.png)                | `screens/439b75d3bf764c02bff7ce032f1b8d6d` |
+| 取引先新規追加       | Dialog             | [画像](./screenshots/modal-transaction-party-add-pc-numbered.png)    | `screens/85cb28bfe42146d4a72de9aa30df8407` |
+| 取引先編集           | Dialog             | [画像](./screenshots/modal-transaction-party-edit-pc-numbered.png)   | `screens/ddb322c65ea54b18bb6509478248ec83` |
+| 取引先削除確認       | AlertDialog        | [画像](./screenshots/modal-transaction-party-delete-pc-numbered.png) | `screens/20956e8371fa4939a5f7d527b074811e` |
+| 取引編集             | Dialog             | [画像](./screenshots/modal-transaction-edit-pc-numbered.png)         | `screens/5c3994a79a1449c78f8e09d7a5a89304` |
+| 一括削除確認         | AlertDialog        | [画像](./screenshots/modal-transaction-bulk-delete-pc-numbered.png)  | `screens/97b946ed46d14143aa79840dd0eb6c78` |
 
 （いずれもStitchプロジェクト `4767028127555592417` 内）
 
@@ -49,28 +49,28 @@
 
 ### FAB2択ポップアップ
 
-| 名称 | 説明 |
-|---|---|
-| メニューカード | FABの直上に表示する角丸の白背景カード、軽いシャドウ |
-| 「手入力で作成」 | ペンシルアイコン付き。タップで`/transactions/new`（通常モード） |
+| 名称                 | 説明                                                                            |
+| -------------------- | ------------------------------------------------------------------------------- |
+| メニューカード       | FABの直上に表示する角丸の白背景カード、軽いシャドウ                             |
+| 「手入力で作成」     | ペンシルアイコン付き。タップで`/transactions/new`（通常モード）                 |
 | 「レシートから作成」 | カメラアイコン付き。タップでレシート読み取りUIを開いた状態の`/transactions/new` |
 
 ### Dialog共通構成（カテゴリ新規追加・家族メンバー追加・本人情報編集）
 
-| 名称 | 説明 |
-|---|---|
-| タイトル+閉じる×アイコン | Dialog上部に左寄せタイトル、右上に×アイコン |
-| フォーム本体 | パターンごとの入力項目（画面固有のため[categories-create.md](./categories-create.md)・[family-members-create.md](./family-members-create.md)・[family-members-edit.md](./family-members-edit.md)を参照） |
-| フッター | 「キャンセル」（グレーテキストボタン）+ プライマリアクション（エメラルドグリーンの塗りボタン）を右寄せ配置 |
+| 名称                     | 説明                                                                                                                                                                                                     |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| タイトル+閉じる×アイコン | Dialog上部に左寄せタイトル、右上に×アイコン                                                                                                                                                              |
+| フォーム本体             | パターンごとの入力項目（画面固有のため[categories/create.md](./categories/create.md)・[family-members/create.md](./family-members/create.md)・[family-members/edit.md](./family-members/edit.md)を参照） |
+| フッター                 | 「キャンセル」（グレーテキストボタン）+ プライマリアクション（エメラルドグリーンの塗りボタン）を右寄せ配置                                                                                               |
 
 ### AlertDialog共通構成（カテゴリ削除確認・家族メンバー削除確認・取引削除確認）
 
-| 名称 | 説明 |
-|---|---|
-| 警告アイコン | アンバー系の三角に!アイコン |
-| タイトル | 対象名を含む確認文（例:「『サブスク代』を削除しますか？」） |
-| 本文 | 削除の影響範囲の説明文（画面固有のため[categories-delete.md](./categories-delete.md)・[family-members-delete.md](./family-members-delete.md)・[transactions-delete.md](./transactions-delete.md)を参照） |
-| フッター | 「キャンセル」（グレーテキストボタン）+「削除する」（赤系の塗りボタン）を右寄せ配置 |
+| 名称         | 説明                                                                                                                                                                                                     |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 警告アイコン | アンバー系の三角に!アイコン                                                                                                                                                                              |
+| タイトル     | 対象名を含む確認文（例:「『サブスク代』を削除しますか？」）                                                                                                                                              |
+| 本文         | 削除の影響範囲の説明文（画面固有のため[categories/delete.md](./categories/delete.md)・[family-members/delete.md](./family-members/delete.md)・[transactions/delete.md](./transactions/delete.md)を参照） |
+| フッター     | 「キャンセル」（グレーテキストボタン）+「削除する」（赤系の塗りボタン）を右寄せ配置                                                                                                                      |
 
 ## 採用した方向性
 
@@ -91,7 +91,7 @@
 
 ## 更新履歴
 
-| 日付 | 変更内容 |
-|---|---|
-| 2026-06-22 | 全画面作り直し方針のもと7パターン（FAB2択ポップアップ・カテゴリ新規追加・カテゴリ削除確認・家族メンバー追加・本人情報編集・家族メンバー削除確認・取引削除確認）を再生成・新規作成し確定。FAB2択ポップアップ（旧版で「未作成」のまま放置）を新規作成し、カテゴリ新規追加Dialogにアイコン・色ピッカーUIを追加。`_template.md`の新フォーマット（関連画面・関連API・採番済みスクリーンショット・パーツ一覧）に合わせて全面リライト |
-| 2026-06-22（2回目） | 一覧・新規作成・編集・削除が1ファイルに混在し読みづらいとのユーザー指摘を受け、画面固有のフォーム項目・関連API・採用理由を各画面のcreate/edit/delete.mdに分割。本ファイルはDialog/AlertDialog/Popoverの見た目の共通フレームワークのみを管理する「見た目パターン集」に位置づけを変更 |
+| 日付                | 変更内容                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-06-22          | 全画面作り直し方針のもと7パターン（FAB2択ポップアップ・カテゴリ新規追加・カテゴリ削除確認・家族メンバー追加・本人情報編集・家族メンバー削除確認・取引削除確認）を再生成・新規作成し確定。FAB2択ポップアップ（旧版で「未作成」のまま放置）を新規作成し、カテゴリ新規追加Dialogにアイコン・色ピッカーUIを追加。`_template.md`の新フォーマット（関連画面・関連API・採番済みスクリーンショット・パーツ一覧）に合わせて全面リライト |
+| 2026-06-22（2回目） | 一覧・新規作成・編集・削除が1ファイルに混在し読みづらいとのユーザー指摘を受け、画面固有のフォーム項目・関連API・採用理由を各画面のcreate/edit/delete.mdに分割。本ファイルはDialog/AlertDialog/Popoverの見た目の共通フレームワークのみを管理する「見た目パターン集」に位置づけを変更                                                                                                                                            |

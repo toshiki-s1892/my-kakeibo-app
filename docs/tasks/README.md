@@ -10,25 +10,26 @@
 
 ## 画面別タスク（[features/](./features/)）
 
-| 画面 | ファイル | 状態 |
-|---|---|---|
-| プロフィール設定 | [profile-setup.md](./features/profile-setup.md) | 進行中 |
-| ダッシュボード | [dashboard.md](./features/dashboard.md) | 未着手 |
-| カテゴリ管理 | [categories.md](./features/categories.md) | 未着手 |
-| 家族構成管理 | [family-members.md](./features/family-members.md) | 未着手 |
-| 取引記録 | 未作成 | 未着手 |
-| 定期取引 | [recurring-transactions.md](./features/recurring-transactions.md) | 未着手 |
-| AI機能 | [ai.md](./features/ai.md) | 未着手 |
+| 画面             | ファイル                                                          | 状態   |
+| ---------------- | ----------------------------------------------------------------- | ------ |
+| プロフィール設定 | [profile-setup.md](./features/profile-setup.md)                   | 進行中 |
+| ダッシュボード   | [dashboard.md](./features/dashboard.md)                           | 未着手 |
+| カテゴリ管理     | [categories.md](./features/categories.md)                         | 未着手 |
+| 家族構成管理     | [family-members.md](./features/family-members.md)                 | 未着手 |
+| 取引記録         | 未作成                                                            | 未着手 |
+| 定期取引         | [recurring-transactions.md](./features/recurring-transactions.md) | 未着手 |
+| AI機能           | [ai.md](./features/ai.md)                                         | 未着手 |
+| ヘルプ           | [help.md](./features/help.md)                                     | 未着手 |
 
 ## 横断タスク（[cross-cutting/](./cross-cutting/)）
 
-| 内容 | ファイル | 状態 |
-|---|---|---|
-| テストツール導入（Vitest/Playwright） | [testing-setup.md](./cross-cutting/testing-setup.md) | 未着手 |
-| 開発ツール導入（Lefthook/CI/PR自動レビュー） | [dev-tooling.md](./cross-cutting/dev-tooling.md) | 未着手 |
-| ID設計のUUID化（全テーブル） | [uuid-migration.md](./cross-cutting/uuid-migration.md) | 未着手 |
-| `(app)`レイアウト（ヘッダー・下部タブバー・取引追加FAB） | [app-layout.md](./cross-cutting/app-layout.md) | 未着手 |
-| `(auth)`レイアウト（ホームへ戻るリンク） | [auth-layout.md](./cross-cutting/auth-layout.md) | 未着手 |
+| 内容                                                     | ファイル                                               | 状態   |
+| -------------------------------------------------------- | ------------------------------------------------------ | ------ |
+| テストツール導入（Vitest/Playwright）                    | [testing-setup.md](./cross-cutting/testing-setup.md)   | 未着手 |
+| 開発ツール導入（Lefthook/CI/PR自動レビュー）             | [dev-tooling.md](./cross-cutting/dev-tooling.md)       | 未着手 |
+| ID設計のUUID化（全テーブル）                             | [uuid-migration.md](./cross-cutting/uuid-migration.md) | 未着手 |
+| `(app)`レイアウト（ヘッダー・下部タブバー・取引追加FAB） | [app-layout.md](./cross-cutting/app-layout.md)         | 未着手 |
+| `(auth)`レイアウト（ホームへ戻るリンク）                 | [auth-layout.md](./cross-cutting/auth-layout.md)       | 未着手 |
 
 ## 技術的な実装規約
 

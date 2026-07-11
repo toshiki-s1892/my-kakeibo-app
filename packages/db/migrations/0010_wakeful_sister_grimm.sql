@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX `categories_user_type_name_idx` ON `categories` (`user_id`,`type_code`,`name`) WHERE "categories"."deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX `categories_default_type_name_idx` ON `categories` (`type_code`,`name`) WHERE "categories"."user_id" IS NULL AND "categories"."deleted_at" IS NULL;

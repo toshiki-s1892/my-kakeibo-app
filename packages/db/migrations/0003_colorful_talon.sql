@@ -1,4 +1,3 @@
-PRAGMA foreign_keys=OFF;--> statement-breakpoint
 CREATE TABLE `__new_transactions` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`user_id` text(50) NOT NULL,
@@ -14,5 +13,4 @@ CREATE TABLE `__new_transactions` (
 --> statement-breakpoint
 INSERT INTO `__new_transactions`("id", "user_id", "category_id", "amount", "transaction_date", "memo", "created_at", "updated_at") SELECT "id", "user_id", "category_id", "amount", "transaction_date", "memo", "created_at", "updated_at" FROM `transactions`;--> statement-breakpoint
 DROP TABLE `transactions`;--> statement-breakpoint
-ALTER TABLE `__new_transactions` RENAME TO `transactions`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;
+ALTER TABLE `__new_transactions` RENAME TO `transactions`;

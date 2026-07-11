@@ -45,30 +45,19 @@ Table ai_advice_messages {
 }
 
 Table categories {
-  id varchar [pk, note: 'UUID。デフォルトカテゴリ16件（user_id IS NULL）も他の全テーブルと同様自動生成でよい（is_default_pin_targetで参照するため固定UUIDのリテラル指定は不要）']
-  user_id varchar [note: 'NULLの場合はシステム共通のデフォルトカテゴリ。ユーザー独自カテゴリの場合は作成者のユーザーID']
+  id varchar [pk, note: 'UUID。他の全テーブルと同様自動生成でよい。プロフィールセットアップ完了時に初期カテゴリ16件がユーザーごとにコピー作成される（固定UUIDのリテラル指定は不要）']
+  user_id varchar [not null, note: '所有ユーザーのID（NOT NULL。システム共有のデフォルトカテゴリという概念は持たない）']
   type_code integer [not null, note: '1: 支出(Expense), 2: 収入(Income)']
-  name varchar(50) [not null, note: 'カテゴリ名（例: 食費, お給料, 推し活費など）。同タイプ内でシステムデフォルト含め重複不可']
+  name varchar(50) [not null, note: 'カテゴリ名（例: 食費, お給料, 推し活費など）。同タイプ内で自分のカテゴリ同士は重複不可']
   icon varchar [not null, note: 'lucide-reactのアイコン名（例: Utensils）。キュレーションした一覧から選択。アップロードは不可。未選択時はデフォルトアイコン（Tag）']
   color varchar [not null, note: 'キュレーションした色キー（例: orange）。8〜10色程度のパステルスウォッチから選択。RGB等の自由入力は不可。アイコン選択時に自動プリセットされ、未上書きならそのまま使用']
   parent_id varchar [note: '親カテゴリ（自己参照・1階層のみ）。ダッシュボードのグラフ集計時に子の金額を親に合算する。親はtype_codeが一致し、かつ自身が子を持たないカテゴリのみ指定可能']
-  is_default_pin_target boolean [not null, default: false, note: 'デフォルトカテゴリ（住まいの費用・食費・光熱費）のみtrue。プロフィールセットアップ完了時のcategory_pins自動INSERTで対象を特定するためのフラグ。ユーザー作成カテゴリは常にfalse']
+  is_pinned boolean [not null, default: false, note: 'ダッシュボードの円グラフで常に表示するための固定表示フラグ。EXPENSE側のみ意味を持つ（INCOMEには設定不可）。EXPENSE側は最低1件true必須。各ユーザーが自分専用の行を持つためカテゴリ自体に直接持たせられる（中間テーブル不要）']
   created_at integer [note: 'UNIX timestamp']
-  deleted_at integer [note: 'UNIX timestamp。NULLでない場合は論理削除済み。システムデフォルトは削除不可']
+  deleted_at integer [note: 'UNIX timestamp。NULLでない場合は論理削除済み。子カテゴリの親に設定されている場合・ピン留め中の場合は削除不可']
 
   indexes {
-    (user_id, type_code, name) [unique, note: 'deleted_at IS NULLの行のみ対象の部分インデックス。自分の既存カテゴリ同士の名前重複に対するDB側の防御層。システムデフォルト（user_id IS NULL）との重複はuser_idが異なるため別タプルとなりこの制約ではカバーできず、アプリ層での判定が必須']
-  }
-}
-
-Table category_pins {
-  id varchar [pk, note: 'UUID']
-  user_id varchar [not null, note: 'ピン留めしたユーザー（デフォルトカテゴリは全ユーザー共有の1行のため、ピン留めはユーザー単位の中間テーブルで管理する）']
-  category_id varchar [not null]
-  created_at integer [note: 'UNIX timestamp']
-
-  indexes {
-    (user_id, category_id) [unique]
+    (user_id, type_code, name) [unique, note: 'deleted_at IS NULLの行のみ対象の部分インデックス。自分の既存カテゴリ同士の名前重複に対するDB側の防御層']
   }
 }
 
@@ -131,8 +120,6 @@ REF: family_members.id < ai_usage_logs.family_member_id
 REF: users.id < transactions.user_id
 REF: users.id < categories.user_id
 REF: categories.id < categories.parent_id
-REF: users.id < category_pins.user_id
-REF: categories.id < category_pins.category_id
 REF: users.id < transaction_parties.user_id
 REF: transactions.party_id > transaction_parties.id
 REF: users.id < recurring_transactions.user_id

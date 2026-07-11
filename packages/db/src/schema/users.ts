@@ -5,11 +5,11 @@ import { createInsertSchema } from 'drizzle-zod';
 // users テーブル
 // ==========================================
 export const usersTable = sqliteTable('users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   clerk_id: text('clerk_id').unique().notNull(),
   regionCode: integer('region_code').notNull(),
-  genderCode: integer('gender_code').notNull(),
-  birthYear: integer('birth_year').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),

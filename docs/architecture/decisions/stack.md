@@ -5,6 +5,7 @@
 ## モノレポ管理: Turborepo
 
 **採用理由:**
+
 - `apps/web` と `packages/db` など複数ワークスペース間でのコード共有が容易
 - タスクのキャッシュにより CI・ローカルのビルドが高速
 - Vercel 製のため Next.js との親和性が高い
@@ -16,6 +17,7 @@
 ## ランタイム / パッケージマネージャ: Bun
 
 **採用理由:**
+
 - npm / yarn より高速なインストール・実行
 - TypeScript をネイティブで実行可能（`tsx` 不要な場面も多い）
 - `bun.lock` による再現性の高い依存関係管理
@@ -27,6 +29,7 @@
 ## フレームワーク: Next.js 16 (App Router) + React 19
 
 **採用理由:**
+
 - App Router による SSR / RSC の活用でパフォーマンスを最適化できる
 - Clerk・Hono・Tailwind など周辺ライブラリの Next.js 対応が充実している
 - Vercel へのデプロイとの相性が最良
@@ -38,6 +41,7 @@
 ## 認証: Clerk
 
 **採用理由:**
+
 - サインアップ・サインイン・セッション管理・MFA を外部委譲でき、認証の実装コストをゼロに近づけられる
 - Next.js App Router 向けの公式 SDK（`@clerk/nextjs`）が充実している
 - `clerk_id` を自前 DB の `users` テーブルと紐付けることで、アプリ固有のユーザー情報を柔軟に管理できる
@@ -49,6 +53,7 @@
 ## API: Hono + Zod OpenAPI
 
 **採用理由:**
+
 - Edge Runtime に対応しており、Vercel Edge Network で低レイテンシな API を実現できる
 - `@hono/zod-openapi` によりスキーマ定義と OpenAPI ドキュメント生成を一元管理できる
 - `@hono/clerk-auth` で Clerk 認証と簡単に統合できる
@@ -62,6 +67,7 @@
 ## ORM + DB: Drizzle ORM + Turso（分散 SQLite）
 
 **採用理由:**
+
 - Drizzle はスキーマを TypeScript で定義でき、Zod との連携（`drizzle-zod`）で DB 定義からバリデーションスキーマを自動生成できる
 - Turso は Edge Runtime に対応した分散 SQLite で、グローバルレプリケーションによる低レイテンシを実現できる
 - SQLite は小〜中規模アプリに十分な性能を持ち、インフラコストが低い
@@ -82,9 +88,10 @@ DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts
 
 ## ID設計: UUID（全テーブル共通）
 
-**採用ツール:** 各テーブルの主キーを `integer autoIncrement` ではなく `text`（UUID。`crypto.randomUUID()`で生成）に統一する。`users`・`categories`・`family_members`・`transactions`・`category_pins`・`transaction_parties`・`recurring_transactions`・`ai_advice_sessions`・`ai_advice_messages` が対象（ログ専用テーブルの例外は下記参照）。
+**採用ツール:** 各テーブルの主キーを `integer autoIncrement` ではなく `text`（UUID。`crypto.randomUUID()`で生成）に統一する。`users`・`categories`・`family_members`・`transactions`・`transaction_parties`・`recurring_transactions`・`ai_advice_sessions`・`ai_advice_messages` が対象（ログ専用テーブルの例外は下記参照）。
 
 **採用理由:**
+
 - 連番IDをURLや`:id`パスパラメータにそのまま使うと、IDの大きさから「だいたい何件登録されているか」という業務情報が推測できてしまう。UUIDにすることでこれを避けられる
 - 「内部用の連番ID + 外部公開用UUID」のデュアルID方式も検討したが、内部結合の性能差はこのアプリの規模（個人・家族利用）では無視できるレベルのため、実装が複雑になるデュアルID方式は不採用とし、PK自体をUUIDにする方式（シンプル）を選んだ
 
@@ -97,6 +104,7 @@ DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts
 **例外: `recurring_transaction_logs`・`ai_usage_logs`は`integer autoIncrement`を採用** — これらはCronやAI機能の利用記録・キャッシュとして内部的に生成・参照するだけのログ専用テーブルで、`id`がクライアントに公開されるAPIエンドポイントを持たない。UUID化の採用理由（URL上でのID推測防止・IDOR対策）が当てはまらないため、ログ確認時の可読性を優先しintegerのままとした。
 
 **影響範囲:**
+
 - `packages/db/src/schema/*.ts` の全テーブルのPK定義変更（マイグレーション必要）
 - `server/shared/id-schema.ts` の `IdParamSchema`・`IdResponseSchema` を `z.coerce.number()` から UUID文字列のバリデーションに変更
 - 既存実装（プロフィール設定機能）への影響を実装時に確認する
@@ -106,6 +114,7 @@ DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts
 ## スタイリング: Tailwind CSS v4
 
 **採用理由:**
+
 - ユーティリティファーストで UI の実装速度が高い
 - v4 は CSS ネイティブな設計でビルドが高速
 
@@ -116,6 +125,7 @@ DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts
 ## UI コンポーネント: shadcn/ui + Base UI
 
 **採用理由:**
+
 - shadcn/ui はコンポーネントをプロジェクト内にコピーする方式のため、依存関係に縛られずカスタマイズが自由
 - Base UI（MUI 製）はヘッドレスなアクセシブルコンポーネントを提供し、shadcn/ui でカバーしきれない部品を補完できる
 
@@ -126,17 +136,18 @@ DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts
 ## AI: Google Gemini API
 
 **採用理由:**
+
 - Gemini は画像認識（マルチモーダル）とテキスト生成の両方に対応しており、レシート読み取りと支出分析・アドバイスを1つのAPIで賄える
 - Google AI Studio での無料枠が充実しており、開発・検証コストを抑えられる
 - `@google/generative-ai`（公式 SDK）で TypeScript から簡単に利用できる
 
 **用途:** 3つの機能で利用する。詳細は[specs/features/ai.md](../../specs/features/ai.md)を参照。
 
-| featureCode | 機能 | Gemini の使い方 |
-|---|---|---|
-| `RECEIPT_SCAN`(1) | レシート読み取り | 画像+カテゴリ一覧をマルチモーダルで送信し、構造化出力（`generateContent`）で複数行の商品・金額・カテゴリ候補を抽出 |
-| `EXPENSE_ANALYSIS`(2) | 簡易支出分析 | 月次データをテキストで送信し、短いコメントを生成（`generateContent`。メンバーごとに1日1回キャッシュ） |
-| `DETAILED_ADVICE`(3) | 本格的アドバイス | 取引データ・居住地域・年齢・家族構成を含むプロンプトを送信し、`generateContentStream`でSSEとして逐次応答 |
+| featureCode           | 機能             | Gemini の使い方                                                                                                    |
+| --------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `RECEIPT_SCAN`(1)     | レシート読み取り | 画像+カテゴリ一覧をマルチモーダルで送信し、構造化出力（`generateContent`）で複数行の商品・金額・カテゴリ候補を抽出 |
+| `EXPENSE_ANALYSIS`(2) | 簡易支出分析     | 月次データをテキストで送信し、短いコメントを生成（`generateContent`。メンバーごとに1日1回キャッシュ）              |
+| `DETAILED_ADVICE`(3)  | 本格的アドバイス | 取引データ・居住地域・年齢・家族構成を含むプロンプトを送信し、`generateContentStream`でSSEとして逐次応答           |
 
 **懸念点:** APIキーの管理に注意が必要。サーバーサイド（Honoハンドラ内）でのみ呼び出し、クライアントには公開しない。利用ログは `ai_usage_logs` テーブルに記録してコスト管理に活用する。
 
@@ -145,6 +156,7 @@ DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts
 ## ホスティング: Vercel（Hobbyプラン）
 
 **採用理由:**
+
 - Next.js との親和性が最良で、デプロイ・環境変数管理が容易
 - Hobbyプランが無料（個人・家族利用の想定アクセス量なら十分な範囲）
 

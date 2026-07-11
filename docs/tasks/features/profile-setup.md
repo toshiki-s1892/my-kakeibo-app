@@ -7,7 +7,7 @@
 - [x] 3. Clerk認証ミドルウェア（`@clerk/hono`）の統合
 - [x] 4. `server/routes/profile/schema.ts` に `POST /api/profile/setup` のcreateRoute定義
 - [x] 5. `server/routes/profile/handler.ts` に `users` + `family_members` へのトランザクションINSERT
-- [ ] 5-1. 上記のトランザクションに、デフォルトカテゴリ（住まいの費用・食費・光熱費）への`category_pins`INSERT（3件）を追加する（[categories.md](./categories.md#バックエンド)の`category_pins`テーブル追加タスクに依存。`WHERE userId IS NULL AND isDefaultPinTarget = true`で対象3件のidを取得してINSERTする。[specs/features/categories.md](../../specs/features/categories.md#カテゴリの固定表示ピン留め)参照）
+- [x] 5-1. 上記のトランザクションに、初期カテゴリ16件の`categories`INSERTを追加する（[categories.md](./categories.md#バックエンド)の`DEFAULT_CATEGORIES`定数定義タスクに依存。`packages/db/src/defaultCategories.ts`の`DEFAULT_CATEGORIES`に新規ユーザーの`userId`を付与してそのままINSERTするだけでよく、住まいの費用・食費・光熱費の3件は`isPinned: true`がテンプレート側に設定済みのため別途の検索・INSERTは不要。[specs/features/categories.md](../../specs/features/categories.md#初期カテゴリプロフィールセットアップ時に自動作成)参照）
 - [x] 6. `server/routes/profile/index.ts` にルート登録・export
 - [x] 7. `app/api/[...route]/route.ts` にルートをマウント
 - [x] 8. 動作確認（DBへの挿入を確認）
@@ -19,7 +19,7 @@
   - [x] `app/api/[...route]/route.ts` の `app` に `app.onError(errorHandler)` を指定（ここ1箇所で `profileRouter` 含む全エラーをキャッチできる。`app`側への`defaultHook`指定は不要）
   - [x] `server/routes/profile/index.ts` の `profileRouter` に `new OpenAPIHono({ defaultHook: validationErrorHook })` を指定（`.openapi()` 時に焼き込まれるため必須）
   - 既知の課題（別タスク）: `proxy.ts` の `auth.protect()` はセッショントークン認証失敗時に404を返すため、`schema.ts` の401レスポンス定義は実質到達不能
-- [ ] 10. `server/shared/error-handler.ts` の想定外例外（500固定）分岐に `console.error`（Clerkの`userId`・リクエストパス・エラー内容）を追加（[api-conventions.mdのエラーログ](../../architecture/decisions/api-conventions.md#エラーログ)参照。`profile-setup`専用ではなく全ルート共通の対応）
+- [x] 10. `server/shared/error-handler.ts` の想定外例外（500固定）分岐に `console.error`（Clerkの`userId`・リクエストパス・エラー内容）を追加（[api-conventions.mdのエラーログ](../../architecture/decisions/api-conventions.md#エラーログ)参照。`profile-setup`専用ではなく全ルート共通の対応）
 
 ## フロントエンド基盤
 
@@ -49,7 +49,7 @@
   - `'use client'` を追加
   - `useProfileSetupForm()` を呼び出し、`ProfileSetupForm` に props を渡す
 - [x] 5. `ProfileSetupForm.tsx` に `submitError` の `Alert` 表示・`isPending` 中の送信ボタン `disabled` を追加
-- [ ] 6. `ProfileSetupForm.tsx` の `Alert` 付近に「サインアウト」リンクを追加（Clerkの`useClerk().signOut()`等。[specs/features/profile-setup.md](../../specs/features/profile-setup.md#500エラー時の脱出口)参照。オンボーディングレイアウトにはナビ・サインアウト手段が一切ないため、500エラー長期化時の脱出口として追加）
+- [x] 6. `ProfileSetupForm.tsx` の `Alert` 付近に「サインアウト」リンクを追加（Clerkの`useClerk().signOut()`等。[specs/features/profile-setup.md](../../specs/features/profile-setup.md#500エラー時の脱出口)参照。オンボーディングレイアウトにはナビ・サインアウト手段が一切ないため、500エラー長期化時の脱出口として追加）
 
 ## ミドルウェア
 

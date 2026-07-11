@@ -1,4 +1,3 @@
-PRAGMA foreign_keys=OFF;--> statement-breakpoint
 CREATE TABLE `__new_ai_usage_logs` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`user_id` text(50) NOT NULL,
@@ -10,7 +9,6 @@ CREATE TABLE `__new_ai_usage_logs` (
 INSERT INTO `__new_ai_usage_logs`("id", "user_id", "feature_code", "created_at") SELECT "id", "user_id", "feature_code", "created_at" FROM `ai_usage_logs`;--> statement-breakpoint
 DROP TABLE `ai_usage_logs`;--> statement-breakpoint
 ALTER TABLE `__new_ai_usage_logs` RENAME TO `ai_usage_logs`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;--> statement-breakpoint
 CREATE TABLE `__new_categories` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`user_id` text(50) NOT NULL,

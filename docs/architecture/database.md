@@ -11,16 +11,12 @@ users
   id, clerk_id, regionCode, createdAt, updatedAt, deletedAt
 
 categories
-  id, userId → users.id（NULL = システムデフォルト）, typeCode, name
+  id, userId → users.id（NOT NULL。全カテゴリは必ず特定ユーザーの所有。プロフィールセットアップ完了時に初期カテゴリ16件がそのユーザーのuserIdでコピー作成される。詳細はspecs/features/categories.md参照）, typeCode, name
+  icon（lucide-reactのアイコン名）, color（キュレーションした色キー）
   parentId → categories.id（自己参照・1階層のみ。グラフ集計時に子の金額を親に合算する）
-  isDefaultPinTarget（デフォルトカテゴリのみtrue。プロフィールセットアップ完了時にどの3件をピン留めするか判定するためのフラグ。ユーザー作成カテゴリは常にfalse。`id`は固定UUIDにせず他テーブルと同様自動生成のままで良い理由はspecs/features/categories.md参照）
+  isPinned（boolean、NOT NULL、デフォルトfalse。EXPENSE側のみ意味を持つ。ダッシュボードの円グラフで常に表示するための固定表示フラグ。各ユーザーが自分専用の行を持つため中間テーブルを介さずカテゴリ自体に直接持たせられる）
   createdAt, deletedAt
-  ※ (userId, typeCode, name) に部分一意制約（deletedAt IS NULLの行のみ対象。論理削除済みの名前は再利用可能にするため）。自分の既存カテゴリ同士の重複に対するDB側の防御層（competing requestによる事故防止）。システムデフォルト（userId IS NULL）との重複はuserIdが異なるため別タプルとなりこの制約ではカバーできず、アプリ層での判定が必須
-
-category_pins
-  id, userId → users.id, categoryId → categories.id, createdAt
-  ※ デフォルトカテゴリは全ユーザー共有の1行のため、ピン留め（ダッシュボードのグラフで常に表示）はcategories側にフラグを持たせず中間テーブルで管理する
-  ※ (userId, categoryId) に一意制約。行が存在する=ピン留めしている
+  ※ (userId, typeCode, name) に部分一意制約（deletedAt IS NULLの行のみ対象。論理削除済みの名前は再利用可能にするため）。自分の既存カテゴリ同士の重複に対するDB側の防御層（competing requestによる事故防止）
 
 transactions
   id, userId → users.id, familyMemberId → family_members.id
