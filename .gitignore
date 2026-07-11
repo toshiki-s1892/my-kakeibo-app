@@ -29,6 +29,10 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# claude code（個人設定）
+.claude/settings.local.json
+setup-global-claude-md.sh
+
 # turbo
 .turbo
 
