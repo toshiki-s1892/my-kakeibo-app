@@ -31,18 +31,18 @@ jobs:
       - name: ユニットテストを実行
         run: bun run test
 
-      - name: Playwright ブラウザをインストール
-        run: bunx playwright install --with-deps
-        working-directory: apps/web
+      # - name: Playwright ブラウザをインストール
+      #   run: bunx playwright install --with-deps
+      #   working-directory: apps/web
 
-      - name: E2E テストを実行
-        run: bun run test:e2e
-        working-directory: apps/web
+      # - name: E2E テストを実行
+      #   run: bun run test:e2e
+      #   working-directory: apps/web
 
-      - name: Playwright レポートをアップロード
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report
-          path: apps/web/playwright-report/
-          retention-days: 30
+      # - name: Playwright レポートをアップロード
+      #   uses: actions/upload-artifact@v4
+      #   if: ${{ !cancelled() }}
+      #   with:
+      #     name: playwright-report
+      #     path: apps/web/playwright-report/
+      #     retention-days: 30

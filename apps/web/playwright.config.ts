@@ -14,8 +14,8 @@ export default defineConfig({
   reporter: 'html',
   // 全てのテストに適用される共通設定
   use: {
-    // テスト時のベースURL（page.goto('/') で localhost:3000/ に遷移する）
-    baseURL: 'http://localhost:3000',
+    // テスト時のベースURL（page.goto('/') で localhost:3001/ に遷移する）
+    baseURL: 'http://localhost:3001',
     // 失敗時のデバッグ用（CI）
     trace: 'on-first-retry',
     // 失敗時のスクリーンショットを保存
@@ -37,7 +37,7 @@ export default defineConfig({
     // 起動するシェルコマンド
     command: 'bun run dev',
     // 起動するWebサーバーのポート番号
-    port: 3000,
+    port: 3001,
     // ローカルは起動済みサーバーを再利用、CIは毎回新規起動
     reuseExistingServer: !process.env.CI,
   },
