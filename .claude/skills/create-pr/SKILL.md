@@ -33,7 +33,7 @@ See [dev-workflow.md](../../../docs/architecture/decisions/dev-workflow.md) for 
    - **Release PR**: title `Release: <date or summary>`; list the included merged PRs/commits in 変更内容.
 
 4. **User approval**
-   - Present base, title, and body; get approval. Apply requested edits and re-present.
+   - First output the base, title, and full body **as markdown in the chat message** (so it renders like the actual PR), then ask for approval with a short prompt that does not repeat the body. Apply requested edits and re-present.
 
 5. **Push and create the PR**
    - After approval, push (use `git push -u origin <branch>` if no upstream is set).
