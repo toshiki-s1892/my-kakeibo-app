@@ -20,7 +20,7 @@ Generate a commit message from the staged changes, but **always present the mess
 
 3. **Generate the commit message (in Japanese)**
    - Format: `<prefix>: <Japanese summary>` matching the existing history (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, ...).
-   - One line is the default. Add a body (blank line + bullet points) only when the summary alone cannot convey the intent.
+   - Always propose a single line. Add a body only if the user explicitly asks for one.
    - Describe the **why/intent**, not a file list.
 
 4. **User approval**
