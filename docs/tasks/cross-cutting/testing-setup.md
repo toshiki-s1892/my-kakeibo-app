@@ -6,8 +6,9 @@
 
 - [x] 1. `vitest`・`@vitejs/plugin-react`・`@testing-library/react`・`@testing-library/dom`・`vite-tsconfig-paths`・`msw` を devDependencies に追加
 - [x] 2. `apps/web/vitest.config.ts` を`projects`機能で作成し、`schema`（node）・`server`（node）・`hooks`（jsdom）の3プロジェクトに分割（[testing-strategy.mdのVitestの実行環境構成](../../architecture/decisions/testing-strategy.md#vitestの実行環境構成projects機能)参照）
-- [x] 3. `package.json` に `test` スクリプトを追加
-- [ ] 4. 既存のzodスキーマに対するサンプルテストを1つ作成して動作確認（`schema`プロジェクト）
+- [x] 3. `package.json` に `test` スクリプトを追加（ルートにも `"test": "turbo run test"` を追加済み）
+- [x] 4. `packages/common/src/__tests__/error-message.test.ts` を作成して動作確認（メッセージ生成関数5件。[testing-strategy.mdの記述規約](../../architecture/decisions/testing-strategy.md)の最初の適用例）
+- [ ] 5. 既存のzodスキーマに対するサンプルテストを1つ作成して動作確認（`schema`プロジェクト）
 
 ## 2. Vitest（結合テスト: server/routes）
 
@@ -27,10 +28,13 @@
 
 - [x] 1. `@playwright/test` を手動インストール（`bun add -d @playwright/test` + `bunx playwright install`）
 - [x] 2. `apps/web/playwright.config.ts` を作成
-- [x] 3. `.github/workflows/playwright.yml` を作成（Bun・モノレポ対応版）
-- [ ] 4. サインイン・ダッシュボードを含む主要フローが一通り繋がってから着手する（[testing-strategy.md](../../architecture/decisions/testing-strategy.md#e2eテスト対象フロー一覧)参照）
-- [ ] 5. `apps/web/e2e/onboarding.spec.ts`（ゴールデンパス1本目）を作成
+- [x] 3. CIワークフローを作成（`playwright.yml` → `ci.yml` にリネームして統合。E2Eステップはテスト0件のためコメントアウト中。[dev-workflow.md](../../architecture/decisions/dev-workflow.md)参照）
+- [ ] 4. `playwright.config.ts` の `webServer.port` を devサーバーの実ポート3001に修正（`baseURL`は修正済み）
+- [ ] 5. サインイン・ダッシュボードを含む主要フローが一通り繋がってから着手する（[testing-strategy.md](../../architecture/decisions/testing-strategy.md#e2eテスト対象フロー一覧)参照）
+- [ ] 6. `apps/web/e2e/onboarding.spec.ts`（ゴールデンパス1本目）を作成
+- [ ] 7. GitHub Secrets に Clerk のキー類を登録し、`ci.yml` のE2Eステップを再有効化する
 
 ## 5. CIへの組み込み
 
-- [ ] 1. [dev-tooling.md](./dev-tooling.md) のCI設定にVitest単体テストが含まれていることを確認
+- [x] 1. `.github/workflows/ci.yml` で lint → 型チェック → Vitest単体テストを実行（2026-07-12導入。実行順の理由は[dev-workflow.md](../../architecture/decisions/dev-workflow.md)参照）
+- [ ] 2. build ステップの追加を検討

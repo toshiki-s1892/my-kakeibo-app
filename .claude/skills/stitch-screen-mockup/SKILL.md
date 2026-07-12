@@ -1,44 +1,45 @@
 ---
 name: stitch-screen-mockup
-description: Google Stitch MCPを使って、機能仕様から新しい画面モックアップを生成する、または既存モックアップを修正する。docs/design/にまだスクリーンショットがない画面を新規作成するとき、確定版の再生成、デザインの修正依頼の際に使う。
+description: Generate or edit screen mockups from feature specs using the Google Stitch MCP. Use for screens with no screenshot in docs/design/ yet, for regenerating finalized versions, or for design-change requests.
 ---
 
-Stitch MCP（`mcp__stitch__*`）を使った画面モックアップの生成・修正を行う。引数（`ARGUMENTS`）に対象の画面名（例: `categories`）が渡される想定。渡されない場合はユーザーに確認する。
+Generate/edit screen mockups with the Stitch MCP (`mcp__stitch__*`). The target screen name (e.g. `categories`) is expected in `ARGUMENTS`; ask the user if missing.
 
-このSkillは生成・編集（書き込み）系の作業を担当する。**できあがったスクリーンショットから画面設計書を書く作業は[`screen-design-doc`スキル](../screen-design-doc/SKILL.md)が担当する**（責務を分けている理由は両スキルとも参照）。
+This skill owns generation/editing (write operations). **Writing the design doc from finished screenshots belongs to the [`screen-design-doc` skill](../screen-design-doc/SKILL.md)** (both skills explain the split of responsibilities).
 
-## 前提
+## Prerequisites
 
-- 対象画面の機能仕様（`docs/specs/features/{feature}.md`）を読み、収集項目・業務フロー・画面遷移を把握する
-- [`docs/design/style-guide.md`](../../../docs/design/style-guide.md)を必読（ブランド・カラーパレット・用語・仕様との整合・差分チェック結果・Stitch運用上の既知の制約・プロンプトチェックリスト）。プロンプトはこのファイルのルールを要約して含める
-- [`docs/design/README.md`](../../../docs/design/README.md)の「全体状況」でStitchプロジェクトID・デザインシステムIDを確認する（`generate_screen_from_text`には必ず`designSystem`パラメータを指定する）
-- [README.mdの次にやること](../../../docs/design/README.md#次にやること)を確認し、再生成の優先順位（カラーカタログ→コンポーネントカタログ→個別画面→モーダル）を踏まえる。土台となる共通パーツが未確定なら、個別画面より先にそちらを作る
+- Read the feature spec (`docs/specs/features/{feature}.md`): fields to collect, business flows, screen transitions.
+- [`docs/design/style-guide.md`](../../../docs/design/style-guide.md) is required reading (brand, color palette, terminology, spec conformance, diff-check results, known Stitch constraints, prompt checklist). Summarize its rules into the prompt.
+- Check the Stitch project ID and design-system ID in the「全体状況」section of [`docs/design/README.md`](../../../docs/design/README.md) (`generate_screen_from_text` must always receive the `designSystem` parameter).
+- Check [README.md「次にやること」](../../../docs/design/README.md#次にやること) for regeneration priority (color catalog → component catalog → individual screens → modals). If shared base parts are unsettled, build those before individual screens.
 
-## 生成・編集の承認について（2026-06-23更新）
+## Approval policy (updated 2026-06-23)
 
-**チャット上で「go」等の明確な承認を得てから実行する、という手順は廃止した**（2026-06-22のセッション中盤、2026-06-23の作業ルール見直しで2度にわたりユーザーが「自動承認で進めてよい」と明示したため、標準の進め方として確定）。`generate_screen_from_text`・`edit_screens`・`generate_variants`は、プロンプトを組み立てたら都度の承認を待たずに実行してよい。これに伴い、`mcp__stitch__*`の主要な生成・編集系ツール、および`docs/design/screenshots/`配下のスクリーンショット操作（`curl`・`cp`・`mv`・`rm`等）は`.claude/settings.json`で恒久的に自動承認対象にしている。
+**The old "wait for an explicit 'go' in chat before running" step is abolished** (the user explicitly allowed auto-approval twice — mid-session on 2026-06-22 and in the 2026-06-23 rules review — making this the standard). `generate_screen_from_text`, `edit_screens`, and `generate_variants` may run without per-call approval once the prompt is assembled. Accordingly, the main `mcp__stitch__*` write tools and screenshot operations under `docs/design/screenshots/` (`curl`, `cp`, `mv`, `rm`, ...) are permanently auto-approved in `.claude/settings.json`.
 
-ただし以下は変わらず守ること:
-- **既存の確定版を作り直す場合は、何を変えるか（プロンプトの要点）をチャットで一言説明してから実行する**（無断で確定版を上書きしない。承認を待たないだけで、説明は省略しない）
-- 生成・編集の実行自体はCLAUDE.mdの「明示的に依頼されない限りファイルの変更・作成を行わない」の対象外（モックアップ自体がユーザーの依頼対象）だが、**画面設計書（`docs/design/*.md`）以外のファイル**（実装コード等）への影響はない範囲に限る
-- タイムアウト時の**即座の同条件リトライは避ける**（[注意点](#注意点)・[style-guide.mdの既知の制約](../../../docs/design/style-guide.md#stitch運用上の既知の制約次回大規模生成時の参考)参照。短時間に何度もリトライすると、各リトライが裏側で別々に成功し重複生成を増やすだけになりやすい）
+Still required:
 
-手順9の[`screen-design-doc`スキル](../screen-design-doc/SKILL.md)呼び出し（できあがった画面をdocに落とす作業）はそもそも対象外で、これも承認を待たずに実行してよい。
+- **When rebuilding an existing finalized screen, state in chat what will change (the gist of the prompt) before running** (never silently overwrite a finalized version; approval is not awaited, but the explanation is never skipped).
+- Generation/editing is exempt from CLAUDE.md's "no file changes unless explicitly requested" rule (the mockup is what the user asked for), but the impact must stay within the mockups and the screen design docs (`docs/design/*.md`) — implementation code must not be affected.
+- **Do not retry immediately with identical conditions after a timeout** (see [Notes](#notes) and the [style-guide known constraints](../../../docs/design/style-guide.md#stitch運用上の既知の制約次回大規模生成時の参考)); rapid retries tend to each succeed separately in the background and only multiply duplicates.
 
-## 手順
+Invoking the [`screen-design-doc` skill](../screen-design-doc/SKILL.md) in step 9 (turning the finished screen into a doc) is out of scope for approval and may also run without waiting.
 
-1. **プロンプトを作成する**: style-guide.mdの「プロンプトを書くときのチェックリスト」を満たすこと（ロゴの具体的な見た目・通知アイコン除外・配色・共通パーツ（ヘッダー/ナビ/FAB/**テーブル行/タブ/メンバーチップ**）との一致・対象外機能の明示・regionCode等のフィールド粒度・差分チェック結果の再発防止・前回指摘の再禁止・**左サイドバー不使用の明示**）。`variantCount`は基本`1`にする（生成時間短縮・重複候補の精査コスト削減のため。複数案を比較したい場合のみ増やす）
-2. **デフォルト状態か状態パターンかを判断する**: タブ切替・ラジオボタン切替・フィルター適用後など、**既に確定済みの基準スクリーンがあり状態だけが変わるケース**は、手順3で`generate_screen_from_text`ではなく`mcp__stitch__generate_variants`を使う（`selectedScreenIds`に基準スクリーンのIDを渡し、`variantOptions: {creativeRange: "REFINE", aspects: ["TEXT_CONTENT"]}`を基本形とし、列構成自体が変わる場合は`aspects`に`"LAYOUT"`も追加する）。新規画面そのもの（基準スクリーンがまだ存在しない画面）は`generate_screen_from_text`を使う（[style-guide.mdの画面パターン・状態デザインの方針](../../../docs/design/style-guide.md#画面パターン状態デザインの方針2026-06-22決定)参照）
-3. **既存の確定版を作り直す場合は、変更点を一言チャットで説明する**（[承認について](#生成編集の承認について2026-06-23更新)参照。新規画面の生成はこの説明も不要）
-4. **`generate_screen_from_text`または`generate_variants`を実行**（前者は`designSystem`パラメータ必須）。タイムアウトしても裏側で生成が継続している場合があるため、即座に同条件で再試行しない。まず`list_screens`で新しいタイトルが現れていないか確認する（ページネーションで全件返らない場合があるため、IDが分かっていれば`get_screen`で直接確認する方が確実）。**1回タイムアウトしただけで間を置かず複数回リトライすると、各回が裏で別々に成功し重複生成が増えるだけになりやすい**（2026-06-23、サインイン/サインアップ・一括削除確認ダイアログ生成で複数回観測）。1〜2分待って`list_screens`で確認するサイクルを2〜3回試し、それでも現れない場合のみ次のリトライに進む
-5. **生成結果を確認する**: スクリーンショットを取得し、仕様外要素が含まれていないか確認する（style-guide.mdの[差分チェック結果](../../../docs/design/style-guide.md#現行スクリーンショットと仕様の差分チェック結果再生成前に必読)に既知の傾向が載っている）。特に**左サイドバーの混入**・**テーブル行/タブの見た目が他画面の確定版と一致しているか**を確認する
-6. **問題があれば`edit_screens`で修正を依頼する**。Stitchは一度の指示で全部直さず1〜2点しか直さない傾向があるため、前回の指摘を省略せずフルの制約リストを毎回含める。**`edit_screens`は成功レスポンスを返しても実際にはファイルが更新されないことがあるため、実行後に必ず`get_screen`を呼び直し、`htmlCode.name`・`screenshot.name`のファイルIDが変化したか確認する。変化していなければ`edit_screens`をリトライせず、`generate_screen_from_text`／`generate_variants`で一から再生成する**
-7. **確定したら`docs/design/README.md`の該当行**（Stitch Screen ID・状態）を更新する
-8. ユーザーから「確定版だと分かりやすくしたい」等の依頼があれば、赤枠などの視覚的マーカーを追加する指示を出す
-9. **その画面の確定スクリーンショットが`docs/design/screenshots/`に保存できたら、他の画面の生成に進む前に、続けて[`screen-design-doc`スキル](../screen-design-doc/SKILL.md)で画面設計書を作成・更新する**。複数画面をまとめて生成してから最後に設計書をまとめ書きするのではなく、1画面ずつ「生成→確認→設計書作成」を完了させてから次の画面に進む（生成済みの内容を覚えている間に書く方が正確で、手戻りも早期に発覚する）
+## Steps
 
-## 注意点
+1. **Write the prompt**: satisfy the style-guide's prompt checklist (concrete logo appearance, exclude the notification icon, palette, consistency with shared parts — header / nav / FAB / **table rows / tabs / member chips** —, explicitly name out-of-scope features, field granularity such as regionCode, prevent known diff regressions, re-forbid previously flagged issues, **explicitly no left sidebar**). Keep `variantCount` at `1` (shorter generation time, less duplicate triage; raise it only to compare alternatives).
+2. **Default state vs state pattern**: when a finalized base screen already exists and only its state changes (tab switch, radio toggle, applied filter), use `mcp__stitch__generate_variants` in step 4 instead of `generate_screen_from_text` (pass the base screen ID in `selectedScreenIds`; start from `variantOptions: {creativeRange: "REFINE", aspects: ["TEXT_CONTENT"]}`, adding `"LAYOUT"` when the column structure itself changes). Use `generate_screen_from_text` for brand-new screens with no base (see [style-guide 画面パターン・状態デザインの方針](../../../docs/design/style-guide.md#画面パターン状態デザインの方針2026-06-22決定)).
+3. **When rebuilding a finalized screen, state the changes in one line in chat first** (see [Approval policy](#approval-policy-updated-2026-06-23); not needed for brand-new screens).
+4. **Run `generate_screen_from_text` or `generate_variants`** (the former requires `designSystem`). Generation may keep running in the background after a timeout; do not immediately re-run with the same conditions. First check `list_screens` for a new title (pagination may hide entries; `get_screen` by ID is more reliable when the ID is known). **Back-to-back retries after a single timeout tend to each succeed separately in the background, only multiplying duplicates** (observed repeatedly on 2026-06-23 with sign-in/sign-up and the bulk-delete confirmation dialog). Wait 1–2 minutes, check `list_screens`, repeat that cycle 2–3 times; move to the next retry only if the screen still has not appeared.
+5. **Verify the result**: fetch the screenshot and check for out-of-spec elements (known tendencies are in the [style-guide diff-check results](../../../docs/design/style-guide.md#現行スクリーンショットと仕様の差分チェック結果再生成前に必読)). In particular check for **left-sidebar contamination** and that **table rows / tabs match the finalized look of other screens**.
+6. **Fix problems with `edit_screens`.** Stitch tends to fix only 1–2 points per instruction, so include the full constraint list every time instead of only the new points. **`edit_screens` can return a success response without actually updating the files — after every call, re-fetch with `get_screen` and confirm the `htmlCode.name` / `screenshot.name` file IDs changed. If they did not change, do not retry `edit_screens`; regenerate from scratch with `generate_screen_from_text` / `generate_variants`.**
+7. **Once finalized, update the screen's row in `docs/design/README.md`** (Stitch Screen ID, status).
+8. If the user asks to make finalized versions visually identifiable, instruct Stitch to add a marker such as a red frame.
+9. **Once the finalized screenshot is saved to `docs/design/screenshots/`, run the [`screen-design-doc` skill](../screen-design-doc/SKILL.md) to create/update the design doc before generating the next screen.** One screen at a time: generate → verify → design doc → next screen (writing while the context is fresh is more accurate, and rework surfaces earlier).
 
-- Stitch MCPツール自体の挙動上の制約（タイムアウト・`list_screens`のページネーション・`roundness`の自動リセット・`edit_screens`の信頼性・左サイドバー混入等）は[style-guide.mdのStitch運用上の既知の制約](../../../docs/design/style-guide.md#stitch運用上の既知の制約次回大規模生成時の参考)を参照する（重複して書かないため、ここには詳細を書かない）
-- 生成・編集は実装ファイルの変更には当たらないため、CLAUDE.mdの「明示的に依頼されない限りファイルの変更・作成を行わない」の対象外として進めてよい（モックアップ自体がユーザーの依頼対象）。[承認について](#生成編集の承認について2026-06-23更新)も参照
-- `mcp__stitch__*`の生成・編集系ツール、スクリーンショットの保存・確認のための`curl`・`cp`・`mv`・`ls`・`rm`等のコマンド（`docs/design/screenshots/`配下に対するもの）は`.claude/settings.json`で恒久的に自動承認対象（2026-06-22決定、2026-06-23に恒久設定へ反映）
+## Notes
+
+- Behavioral constraints of the Stitch MCP tools themselves (timeouts, `list_screens` pagination, `roundness` auto-reset, `edit_screens` reliability, left-sidebar contamination, ...) live in the [style-guide known-constraints section](../../../docs/design/style-guide.md#stitch運用上の既知の制約次回大規模生成時の参考) — not duplicated here.
+- Generation/editing does not count as changing implementation files, so it is exempt from CLAUDE.md's "no file changes unless explicitly requested" rule (the mockup is the user's request). See the [Approval policy](#approval-policy-updated-2026-06-23).
+- The `mcp__stitch__*` write tools and the `curl` / `cp` / `mv` / `ls` / `rm` commands targeting `docs/design/screenshots/` are permanently auto-approved in `.claude/settings.json` (decided 2026-06-22, made permanent on 2026-06-23).

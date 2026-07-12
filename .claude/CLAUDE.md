@@ -12,9 +12,13 @@
 @docs/architecture/decisions/design-docs-tooling.md
 @docs/architecture/database.md
 @docs/tasks/README.md
-@docs/tasks/cross-cutting/setup.md
 @docs/tasks/cross-cutting/testing-setup.md
 @docs/tasks/features/profile-setup.md
+
+## import の運用ルール
+
+- 上記の `@docs/` import のうち、`specs/features/` と `tasks/` 配下は**進行中の機能・タスクのファイルのみ**を import する（全機能を import するとコンテキストを圧迫するため）
+- 機能・タスクが完了したら import から外し、次に着手する機能のファイルに差し替える（ファイル自体は docs/ に残す）。この差し替えは `/update-docs` の対象に含む
 
 ## 作業ルール
 
@@ -28,7 +32,10 @@
 - 会話の中でドキュメント（docs/ および本ファイル CLAUDE.md）の更新が必要と判断した場合は、その旨を一言伝えるにとどめること。実際の更新はユーザーが `/update-docs` を呼び出したタイミングで行う。`/update-docs` はCLAUDE.md自体（作業ルール・スタイルガイド等）の更新も対象に含む
 - ドキュメントは1ファイルが冗長になる場合、ディレクトリ分割・ファイル分割して可読性を維持すること
 - 人間向けの入口情報（セットアップ手順・コマンド一覧・開発フロー図などのWhat）はルート `README.md` に置き、意思決定の理由・背景（Why）は `docs/architecture/decisions/` に置くこと。同じ図・内容を両方に重複して書かず、一方からもう一方へリンクで参照する
+- モデル専用ファイル（`.claude/skills/`・`.claude/agents/`・CIのレビュープロンプト等）は**英語で記述**すること（トークン効率のため）。ただし成果物（レビューコメント・PR本文・調査レポート・Notionメモ等）は**日本語で出力**するよう各ファイルに明記する。人間向けの役割一覧はルート `README.md` の「Claude Code スキル・エージェント一覧」で管理する
 - ルート `README.md` も `/update-docs` の更新対象に含めること。セットアップ手順・コマンド・技術スタック・開発フロー・ドキュメント一覧に変更があったら適宜追記・更新する
+- `/update-docs` によるドキュメント更新は**そのとき作業中のブランチ**にコミットする（mainへ直接入れない）。画面と無関係なdocs更新が feature ブランチに混ざるのは許容する（その決定を生んだ作業と同じPRで流す方針。[dev-workflow.md](../docs/architecture/decisions/dev-workflow.md)参照）
+- `settings.json` の許可リスト（`permissions.allow`）に任意コード実行と等価のワイルドカード（`Bash(python3 -c *)`・`Bash(bash -c *)`・`Bash(npx *)` 等のインタプリタ・パッケージランナー）を追加しないこと。スクリプト実行を許可する場合は特定スクリプトパスに固定する
 
 ## shadcn/ui ルール
 
@@ -55,6 +62,10 @@
 - `features/` 配下の `types/` ディレクトリは複数ファイルから参照される型のみ置くこと。単一コンポーネントのprops型はそのファイルに同居させること
 - API ミューテーションは `mutate` + コールバック方式（`onSuccess`/`onError`）で統一すること
   - orval 生成 hooks は HTTP エラーでも throw しないため `mutateAsync` + `try/catch` は機能しない
+- テストの記述規約（詳細は [testing-strategy.md](../docs/architecture/decisions/testing-strategy.md) 参照）
+  - `describe` はコードの識別子を英語のまま（`Tests` 接尾辞・ファイル全体を括る describe は不要）、テスト名は日本語で振る舞いを書くこと
+  - `it` ではなく `test` を使い、`describe`/`test`/`expect` は vitest から明示的に import すること（globals 不使用）
+  - 文字列定数そのものはテストしないこと（change-detector test になるため。テスト対象はロジックを持つ関数のみ）
 
 ## 技術ブログ自動記録（かけぼアプリ開発）
 

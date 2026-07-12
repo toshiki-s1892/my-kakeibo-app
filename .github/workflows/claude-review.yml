@@ -1,0 +1,79 @@
+name: Claude PR Review
+
+# 実行タイミング（利用枠節約のため回数を制御する。dev-workflow.md参照）:
+# - PR作成時に1回自動実行
+# - 再レビューはPRに「/re-review」とコメントしたときのみ実行（pushしただけでは走らない）
+on:
+  pull_request:
+    types: [opened]
+    # コードに影響しない変更ではレビューを起動しない（ci.ymlのpaths-ignoreと同方針）
+    paths-ignore:
+      - 'docs/**'
+      - '.claude/**'
+      - '**.md'
+  issue_comment:
+    types: [created]
+
+jobs:
+  review:
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/re-review'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      # issue_commentトリガーではデフォルトブランチがcheckoutされるため、PRブランチに切り替える
+      - name: Checkout PR branch (re-review)
+        if: github.event_name == 'issue_comment'
+        run: gh pr checkout ${{ github.event.issue.number }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+
+            Review this pull request. Write all review comments in Japanese.
+            The PR branch is already checked out in the current working directory.
+
+            Review perspectives (project conventions are .claude/CLAUDE.md and the docs/ files it references):
+            - Bugs, logic errors, missed edge cases
+            - Conformance to the feature spec in docs/specs/features/ (validation rules, business flows, screen behavior; skip if the feature has no spec file)
+            - Conformance to docs/architecture/decisions/api-conventions.md (API auth, DB client separation, error handling, etc.)
+            - Conformance to docs/architecture/decisions/frontend-conventions.md (Route/Form separation, orval usage, form rules, etc.)
+            - Next.js App Router best practices (Server/Client Component split, DAL pattern, etc.)
+            - Hono + Zod OpenAPI best practices (missing schema definitions, insufficient validation, etc.)
+            - Security (missing authorization, input validation, leaked secrets)
+            - Performance (N+1 queries with Drizzle; fetching in a Client Component what a Server Component could do)
+            - DB migration safety (destructive changes such as dropped columns / type changes; executable on SQLite/Turso; only for PRs containing schema changes)
+            - Tests (aligned with testing-strategy.md; also flag unnecessary added tests)
+
+            Order findings by severity.
+            Do not flag style issues that lint/format can catch mechanically (CI covers them).
+            Prefix every finding with a severity label:
+            - [must] must be fixed before merge (bugs, security, convention violations)
+            - [want] recommended fix; the author decides
+            - [nits] minor improvement (naming, readability, comment quality; optional)
+            - [ask] question / intent check (not a change request)
+            Start the summary comment with per-label counts (e.g. must 1件 / want 2件 / nits 1件).
+            On re-reviews (triggered by a /re-review comment), check the earlier review comments
+            and do not repeat findings that were already addressed.
+
+            Post exactly one summary comment with `gh pr comment`.
+            Use `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`) for line-specific findings.
+            Only post GitHub comments — do not output the review text as a message.
+
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"

@@ -9,6 +9,7 @@
       "Bash(curl -sL *)",
       "Bash(curl -s *)",
       "mcp__shadcn__get_item_examples_from_registries",
+      "mcp__claude_ai_Notion__notion-fetch",
       "mcp__stitch__generate_screen_from_text",
       "mcp__stitch__edit_screens",
       "mcp__stitch__update_design_system",
@@ -23,8 +24,7 @@
       "Bash(ls *)",
       "Bash(python3 .claude/skills/screen-design-doc/annotate_screenshot.py *)",
       "Bash(cd /Users/toshiki.suo/Desktop/my-kakeibo-app && python3 .claude/skills/screen-design-doc/annotate_screenshot.py *)",
-      "Bash(python3 -c ' *)",
-      "Bash(python3 -c *)",
+      "Bash(sips -g *)",
       "Bash(grep *)",
       "Bash(jq *)",
       "Bash(wc *)",
@@ -33,6 +33,18 @@
       "Bash(rm docs/design/screenshots/*)",
       "Edit(docs/design/*)",
       "Write(docs/design/*)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"End-of-turn self-check: if this session settled decisions that belong in docs/ or CLAUDE.md (specs, conventions, task status, skill/agent defs), append ONE line at the end of your response noting it so the user can run /update-docs. If nothing needs updating, say nothing about docs.\"}}'"
+          }
+        ]
+      }
     ]
   }
 }

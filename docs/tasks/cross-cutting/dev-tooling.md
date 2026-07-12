@@ -7,13 +7,15 @@
 - [x] 1. `lefthook` を devDependencies に追加
 - [x] 2. `lefthook.yml` を作成（pre-commit: lint・format・型チェック）
 - [x] 3. `bun install` 時に `lefthook install` が自動実行されるよう設定
+- [x] 4. ステージ済みファイルのみの軽量チェックに再構成（lint-web/test-web/test-common、型チェックはCIへ移管。2026-07-12。[dev-workflow.md](../../architecture/decisions/dev-workflow.md)参照）
 
 ## 2. CI（GitHub Actions）
 
-- [ ] 1. `.github/workflows/ci.yml` を作成
-- [ ] 2. PR作成・更新時に lint・型チェック・Vitest単体テスト・build を実行
-- [ ] 3. GitHubのBranch Protectionで上記ジョブを必須ステータスチェックに設定
-- [ ] 4. ルート `README.md` の開発フロー図（仮で作成済み）をCIの実態に合わせて更新
+- [x] 1. `.github/workflows/ci.yml` を作成
+- [x] 2. push・PR時に lint・型チェック・Vitest単体テストを実行（buildは未組み込み。docs/`.claude`/Markdownのみの変更は`paths-ignore`でスキップ）
+- [x] 3. GitHubのRuleset（Branch Protection）で`test`ジョブを必須ステータスチェックに設定（mainのみ。設定内容は[dev-workflow.md](../../architecture/decisions/dev-workflow.md)参照）
+- [x] 4. ルート `README.md` の開発フロー図（仮で作成済み）をCIの実態に合わせて更新
+- [ ] 5. build ステップの追加を検討
 
 ## 3. claude-code-action（PR自動コードレビュー）
 

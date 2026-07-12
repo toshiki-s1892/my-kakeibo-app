@@ -28,3 +28,4 @@
 | 画面の見た目・モックアップ                                                             | [design/](./design/)（新規作成・更新の手順は[design/README.md](./design/README.md)参照）                                                                            |
 | 実装タスクの追加・進捗                                                                 | [tasks/features/](./tasks/features/)または[tasks/cross-cutting/](./tasks/cross-cutting/)                                                                            |
 | Claude自身の作業ルール・権限                                                           | `.claude/CLAUDE.md`（`/update-docs`の更新対象に含む）                                                                                                               |
+| スキル・エージェントの追加・役割変更                                                   | 定義ファイル（`.claude/skills/`・`.claude/agents/`、英語で記述）+ ルート[README.md](../README.md)の一覧表                                                           |
