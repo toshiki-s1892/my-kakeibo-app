@@ -23,7 +23,7 @@
 
 ## フロントエンド基盤
 
-- [x] 1. TanStack Query の `QueryClientProvider` を `components/provider.tsx` に設定
+- [x] 1. TanStack Query の `QueryClientProvider` を設定（当初 `components/provider.tsx`、2026-07-19に `app/providers.tsx` へ移動）
 - [x] 2. orval設定（`orval.config.ts`）・型生成スクリプト（`bun run generate`）
 - [x] 3. `lib/api/generated/` に型・hooksを生成
 

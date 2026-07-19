@@ -52,6 +52,7 @@
 - Radix UI の Select は `value` に `undefined` を渡すと非制御モードになるため、`field.value ?? ''` を使うこと
 - Zod スキーマで Select フィールドは `z.enum([...])` に **string** 値を渡すこと（Radix UI は常に string を返す）
 - DB 保存用の数値コード（`GENDER_CODE` 等）への変換は `onSubmit` 内で行うこと
+- Zod のデフォルトエラーメッセージは日本語ロケールをグローバル設定済み（`lib/zod-locale.ts` を `app/providers.tsx`・`app/api/[...route]/route.ts` で副作用 import）。新しい入口を作る際は import を忘れないこと（詳細は [frontend-conventions.md](../docs/architecture/decisions/frontend-conventions.md#zodエラーメッセージの日本語化グローバルロケール設定) 参照）
 
 ## テスト・コンポーネントカタログ ルール
 
@@ -64,8 +65,15 @@
   - orval 生成 hooks は HTTP エラーでも throw しないため `mutateAsync` + `try/catch` は機能しない
 - テストの記述規約（詳細は [testing-strategy.md](../docs/architecture/decisions/testing-strategy.md) 参照）
   - `describe` はコードの識別子を英語のまま（`Tests` 接尾辞・ファイル全体を括る describe は不要）、テスト名は日本語で振る舞いを書くこと
-  - `it` ではなく `test` を使い、`describe`/`test`/`expect` は vitest から明示的に import すること（globals 不使用）
+  - hooks 層テストのみ、外側 describe（フック名）の内側に `describe('正常系')`・`describe('異常系')` の分類ラベルを置くこと（ラベル専用。beforeEach・共有変数は置かない）。schema 層はフィールド単位 describe でラベル不使用（従来どおり）
+  - テスト名は検証している規則を書き、サンプル値を書かないこと（「500が返ると」ではなく「204・400以外のステータスが返ると」。ステータス専用分岐の 204・400 は名前に書いてよい）
+  - テストヘルパーは Arrange（＋共通 Act）のみ抽出し、`expect` は各テストに残すこと。引数フラグで分岐するヘルパーは作らない（AHA 原則）
+  - `it` ではなく `test` を使うこと。`describe`/`test`/`expect`/`vi` 等の vitest API は **globals: true 設定済みのため import 不要**（新規テストでは import を書かない。tsconfig への `vitest/globals` 追加もセットで必要）
+  - モックの呼び出し履歴は `clearMocks: true`（apps/web の vitest.config.ts 設定済み）でテスト毎に自動クリアされる。ファイル個別の `vi.clearAllMocks()` は書かないこと
   - 文字列定数そのものはテストしないこと（change-detector test になるため。テスト対象はロジックを持つ関数のみ）
+  - schema 層のテストはメッセージの選択まで検証すること（期待値は `requiredMessage` 等の定数・関数への**参照**。文言ハードコードは禁止。Zod デフォルト文言に任せた箇所は文言を検証しない）
+  - フックの異常系は MSW の `server.use()` で上書きすること（パスは orval 生成ハンドラと同じ `*/api/...` 形式。`onError` 分岐は `HttpResponse.error()` でのみ到達可能）
+  - テストの実行は `bun run test` を使うこと（`bun test` は Bun 内蔵ランナーが起動し vitest.config.ts を読まないため禁止）
 
 ## 技術ブログ自動記録（かけぼアプリ開発）
 

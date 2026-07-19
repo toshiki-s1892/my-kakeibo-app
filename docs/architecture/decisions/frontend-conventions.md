@@ -11,7 +11,7 @@
 **運用方針:**
 
 - orval の生成コードは `lib/api/generated/` に出力し、手書きコードと明確に分離する（手動編集禁止）
-- `QueryClientProvider` は `components/provider.tsx` に `'use client'` で定義し、`app/layout.tsx` の `<body>` 内で全体を囲む
+- `QueryClientProvider` は `app/providers.tsx` に `'use client'` で定義し、`app/layout.tsx` の `<body>` 内で全体を囲む（唯一の利用者が `app/layout.tsx` のためコロケーション優先で `app/` 直下に配置。`components/` は表示用コンポーネント専用とする。2026-07-19に `components/provider.tsx` から移動）
 - orval設定は `mock: true` とする。`features/*/hooks/`のフックテスト（MSWと組み合わせる）で使用する。具体的な運用方針は[testing-strategy.mdのフックテストのMSWモック方針](./testing-strategy.md#フックテストのmswモック方針)を参照
 
 **懸念点:** APIスキーマ変更後に `bun run generate` の実行を忘れると型と実装がズレる。スキーマ変更時は必ず実行する。
@@ -46,6 +46,24 @@ export const GENDER_OPTIONS = [
 // 変換処理
 genderCode: GENDER_CODE[data.gender], // 'MALE' → 1, 'FEMALE' → 2, 'OTHER' → 9
 ```
+
+## Zodエラーメッセージの日本語化（グローバルロケール設定）
+
+**背景:** バリデーションメッセージは`packages/common/src/error-message.ts`の定数・関数をスキーマに配線しているが、配線し忘れた箇所やカスタムエラー関数が`undefined`を返す分岐（enum外の値等）ではZodの英語デフォルト文言にフォールバックしてしまう。フィールドごとに穴を塞いで回る方式では書き漏らしリスクが残り続けるため、横断的関心事としてグローバルに解決する。
+
+**採用（2026-07-13）:** Zod 4同梱の公式日本語ロケールをアプリ初期化時に1回設定する。
+
+```ts
+// lib/zod-locale.ts
+import z from 'zod';
+
+z.config(z.locales.ja());
+```
+
+- クライアント側入口（`app/providers.tsx`）とサーバー側入口（`app/api/[...route]/route.ts`）の先頭で副作用import（`import '@/lib/zod-locale';`）する。Next.jsではクライアントとサーバーが別バンドルのため**両方の入口で必要**。新しい入口（別レイアウト直下のClient Component等）を作る場合も同様
+- スキーマに配線した自前メッセージ（`requiredMessage`等）はロケールより常に優先されるため、既存の挙動には影響しない。役割分担は「自前で文言を決めたい箇所＝カスタムメッセージ、書き漏らし・想定外の箇所＝日本語ロケールがフォールバック」の二段構え
+- 共有パッケージ（`packages/common`）の読み込み副作用に仕込む方式は「importしただけで全体設定が変わる」暗黙の魔法になるため不採用
+- vitestはアプリの入口を通らないため、テスト実行時はロケール未適用（英語デフォルト）になる。テストがZodデフォルト文言を検証しない方針（[testing-strategy.md](./testing-strategy.md#各層の検証責務重複を避ける)参照）のため問題にならない
 
 ## フロントエンドのエラーハンドリング方針
 
