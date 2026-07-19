@@ -1,4 +1,5 @@
 'use client';
+import '@/lib/zod-locale';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode, useState } from 'react';
 

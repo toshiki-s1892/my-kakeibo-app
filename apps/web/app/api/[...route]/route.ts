@@ -1,3 +1,4 @@
+import '@/lib/zod-locale';
 import profileRouter from '@/server/routes/profile';
 import { errorHandler } from '@/server/shared/error-handler';
 import { clerkMiddleware } from '@clerk/hono';

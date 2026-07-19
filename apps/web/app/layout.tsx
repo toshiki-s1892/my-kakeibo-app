@@ -1,4 +1,4 @@
-import { Provider } from '@/components/provider';
+import { Provider } from './providers';
 import { jaJP } from '@clerk/localizations';
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
