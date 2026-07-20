@@ -7,12 +7,14 @@ node_modules
 
 # testing
 coverage
+apps/web/.tmp-test-db/
 
 # next.js
 .next/
 out/
 build
 .swc/
+next-env.d.ts
 
 # misc
 .DS_Store

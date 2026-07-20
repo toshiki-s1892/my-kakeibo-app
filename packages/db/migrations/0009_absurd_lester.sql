@@ -1,1 +1,0 @@
-ALTER TABLE `categories` ADD `is_default_pin_target` integer DEFAULT false NOT NULL;

@@ -13,7 +13,7 @@
 
 | 画面             | ファイル                                                          | 状態   |
 | ---------------- | ----------------------------------------------------------------- | ------ |
-| プロフィール設定 | [profile-setup.md](./features/profile-setup.md)                   | 進行中 |
+| プロフィール設定 | [profile-setup.md](./features/profile-setup.md)                   | 完了   |
 | ダッシュボード   | [dashboard.md](./features/dashboard.md)                           | 未着手 |
 | カテゴリ管理     | [categories.md](./features/categories.md)                         | 未着手 |
 | 家族構成管理     | [family-members.md](./features/family-members.md)                 | 未着手 |
@@ -26,7 +26,7 @@
 
 | 内容                                                     | ファイル                                               | 状態   |
 | -------------------------------------------------------- | ------------------------------------------------------ | ------ |
-| テストツール導入（Vitest/Playwright）                    | [testing-setup.md](./cross-cutting/testing-setup.md)   | 未着手 |
+| テストツール導入（Vitest/Playwright）                    | [testing-setup.md](./cross-cutting/testing-setup.md)   | 進行中 |
 | 開発ツール導入（Lefthook/CI/PR自動レビュー）             | [dev-tooling.md](./cross-cutting/dev-tooling.md)       | 未着手 |
 | ID設計のUUID化（全テーブル）                             | [uuid-migration.md](./cross-cutting/uuid-migration.md) | 未着手 |
 | `(app)`レイアウト（ヘッダー・下部タブバー・取引追加FAB） | [app-layout.md](./cross-cutting/app-layout.md)         | 未着手 |

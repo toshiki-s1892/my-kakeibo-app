@@ -54,6 +54,12 @@ TURSO_CONNECTION_URL=
 TURSO_AUTH_TOKEN=
 ```
 
+`apps/web/.env.local` にはさらに以下を設定する（ローカル開発時のDB接続先。`TURSO_CONNECTION_URL` と同じ値を設定すると従来どおり Turso に接続する。未設定だと `file:./local.db` に接続される。テスト実行時はこの値に関係なくインメモリDBが使われる。背景は [testing-strategy.md](docs/architecture/decisions/testing-strategy.md#結合テスト用dbの構成2026-07-20実装) を参照）。
+
+```env
+DATABASE_URL=
+```
+
 ### インストール・起動
 
 ```bash

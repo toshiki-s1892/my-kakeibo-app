@@ -78,11 +78,13 @@
 
 DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts`の役割分担）は[api-conventions.md](./api-conventions.md#dbクライアントの分離)を参照。
 
-**マイグレーション運用: `drizzle-kit generate` + `push`（`migrate`は不採用）**
+**マイグレーション運用: `drizzle-kit generate` + `migrate`（2026-07-20に`push`運用から変更）**
 
-スキーマ変更は `db:generate`（マイグレーションSQLファイルを履歴として出力）→ `db:push`（schema.tsと実DBを直接diffして同期）の順で適用する。`migrations/*.sql`は変更履歴の記録用であり、実際の反映には使われない。
+スキーマ変更は `db:generate`（マイグレーションSQLファイルを生成）→ `drizzle-kit migrate`（未適用ファイルを順次適用し、適用履歴を`__drizzle_migrations`テーブルでDB側管理）の順で適用する。
 
-**検討した代替案（不採用）:** `drizzle-kit migrate`（マイグレーションファイルの内容を順次適用し、適用履歴をDB側で管理する方式）を試したが、Turso（libsql HTTPドライバ）では全マイグレーションを単一の`db.transaction()`でラップする`migrate`の実装がトランザクションを正しく完了できず、無限にハングすることを実機検証で確認した。`push`はトランザクションを使わず単発リクエストの集合で適用するため、この問題が起きない。そのため`migrate`運用は不採用とし、`push`運用を維持する。
+**変更理由:** 結合テスト基盤（[testing-strategy.md](./testing-strategy.md#結合テストのdb分離テストケース単位2026-07-20実装)）が`migrations/*.sql`を`migrate()`で空DBに再生する方式になり、マイグレーションファイルが「記録用」ではなく実際に使われる成果物になった。`push`は適用履歴を記録せずschema.tsと実DBを直接diffするため、ファイルと実DBの整合が保証されず、履歴の破損に気づけない（実際に2026-07-20、push運用下で再生不能な履歴が蓄積していたことが発覚しスカッシュに至った。[database.md](../database.md#マイグレーション運用履歴)参照）。
+
+**旧運用の経緯:** 当初は`migrate`がTurso（libsql HTTPドライバ）で無限ハングする問題を実機確認したため`push`運用としていた。2026-07-20、drizzle-kit 0.31.10 + `dialect: 'turso'`でベースライン適用時に`migrate`が正常完了することを実機で再確認したため、この制約は解消済みと判断した（今後ハングが再発した場合はdrizzle-kitのバージョンとこの記述を見直すこと）。
 
 ---
 

@@ -15,7 +15,7 @@ async function test() {
     const result = await client.execute('PRAGMA table_info(__drizzle_migrations);');
     console.log('Table structure:');
     console.log(result.rows);
-    
+
     // テーブル一覧を確認
     const tables = await client.execute("SELECT name FROM sqlite_master WHERE type='table';");
     console.log('\nAll tables:');

@@ -5,16 +5,19 @@
 **採用ツール:** Mermaid（Markdown埋め込み）
 
 **採用理由:**
+
 - GitHubが標準でレンダリングできるため、専用ビューアが不要
 - 既存のER図（`docs/architecture/schema.dbml`）と同様、図を「テキストで管理」できるため、Gitで差分が追いやすい
 
 **配置方針:**
+
 - 複数機能をまたぐ全体図（画面遷移図・認証シーケンス図）は `docs/architecture/` に配置する
   - `docs/architecture/screen-flow.md`: 画面遷移図
   - `docs/architecture/auth-sequence.md`: 認証関連のシーケンス図
 - 機能固有の業務フロー（取引記録の入力フローなど）は、該当する `docs/specs/features/{feature名}.md` に追記する
 
 **図の種類の使い分け:**
+
 - **`flowchart`**: 1つの処理内の条件分岐・ステップ（例: 名前重複チェック→OKならINSERT、NGならエラー）
 - **`sequenceDiagram`**: 複数のシステム・時間軸を伴うやり取り。`docs/specs/features/`の各CRUD操作（追加・編集・削除等）には`auth-sequence.md`と同じ形（Browser→`proxy.ts`の`clerkMiddleware`認証チェック→Hono Server→DB）で1枚ずつ用意し、`flowchart`と併記する。外部API（Gemini等）やCronのような複数システムが絡む処理も同様にシーケンス図で表現する
 
@@ -25,6 +28,7 @@
 **位置付け:** 画面の雰囲気・方向性を決めるためのモックアップ作成専用。MCP連携は行わず、実装はStitchの出力を参考にユーザー自身が行う（CLAUDE.mdの「明示的に依頼されない限りファイルの変更・作成を行わない」方針に従う）。
 
 **不採用:**
+
 - v0（Vercel）: shadcn/ui準拠のコードを直接生成できるが、このリポジトリの実装規約（Route/Form分離・`server/lib/`のDALパターンなど）には対応していないため、コード生成の価値が薄い
 - Figma: チーム協業・デザインシステム管理向けの機能が中心で、個人開発の本プロジェクトでは過剰
 

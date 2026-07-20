@@ -29,6 +29,7 @@
     "dev": "tsc --watch",
     "build": "tsc",
     "db:generate": "npx drizzle-kit generate",
+    "db:migrate": "npx drizzle-kit migrate",
     "db:push": "npx drizzle-kit push",
     "db:studio": "npx drizzle-kit studio"
   }

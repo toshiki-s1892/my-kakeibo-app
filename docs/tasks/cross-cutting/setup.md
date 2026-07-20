@@ -38,7 +38,7 @@
 
 ---
 
-## TanStack Query Provider（`components/provider.tsx`）
+## TanStack Query Provider（`app/providers.tsx`。当初 `components/provider.tsx` に作成、2026-07-19移動）
 
 - [x] 1. `QueryClientProvider` を `'use client'` コンポーネントとして作成
 - [x] 2. `app/layout.tsx` の `<body>` 内でラップ

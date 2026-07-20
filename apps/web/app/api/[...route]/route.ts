@@ -1,19 +1,34 @@
-import { Hono } from 'hono';
+import '@/lib/zod-locale';
+import profileRouter from '@/server/routes/profile';
+import { errorHandler } from '@/server/shared/error-handler';
+import { clerkMiddleware } from '@clerk/hono';
+import { swaggerUI } from '@hono/swagger-ui';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { handle } from 'hono/vercel';
-
-// Edgeランタイム（世界中のCDNで爆速で動くモード）を有効化
 export const runtime = 'edge';
 
-// Honoのアプリを初期化（すべてのAPIのURLが /api から始まるように設定）
-const app = new Hono().basePath('/api');
+const app = new OpenAPIHono().basePath('/api');
 
-// テスト用のルート (GET /api/hello)
-app.get('/hello', (c) => {
-  return c.json({
-    message: 'Hello from Hono & Bun!',
-    timestamp: new Date().toISOString(),
-  });
+app.use('/profile/*', clerkMiddleware());
+app.route('/profile', profileRouter);
+
+app.onError(errorHandler);
+
+app.openAPIRegistry.registerComponent('securitySchemes', 'Bearer', {
+  type: 'http',
+  scheme: 'bearer',
 });
+
+app.doc('/doc', {
+  openapi: '3.0.0',
+  info: {
+    title: '家計簿API',
+    version: '1.0.0',
+  },
+});
+
+// Swagger UI
+app.get('/ui', swaggerUI({ url: '/api/doc' }));
 
 export const GET = handle(app);
 export const POST = handle(app);
