@@ -1,7 +1,6 @@
 @docs/README.md
 @docs/specs/product.md
 @docs/specs/overview.md
-@docs/specs/features/profile-setup.md
 @docs/architecture/overview.md
 @docs/architecture/decisions/stack.md
 @docs/architecture/decisions/api-conventions.md
@@ -13,7 +12,6 @@
 @docs/architecture/database.md
 @docs/tasks/README.md
 @docs/tasks/cross-cutting/testing-setup.md
-@docs/tasks/features/profile-setup.md
 
 ## import の運用ルール
 
