@@ -40,6 +40,14 @@ export const createUserRoute = createRoute({
         },
       },
     },
+    409: {
+      description: 'すでにプロフィールが登録されている場合',
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema,
+        },
+      },
+    },
     500: {
       description: 'サーバーエラー',
       content: {

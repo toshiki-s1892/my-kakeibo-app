@@ -87,7 +87,7 @@ describe('profileHandler', () => {
         }),
         headers: new Headers({ 'Content-Type': 'application/json' }),
       });
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(409);
 
       const { db } = await import('@/server/lib/db');
       const users = await db.select().from(usersTable);

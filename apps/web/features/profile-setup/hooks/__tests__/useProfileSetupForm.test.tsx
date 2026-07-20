@@ -96,25 +96,11 @@ describe('useProfileSetupForm', () => {
   });
 
   describe('異常系', () => {
-    test('400が返るとsubmitErrorが設定される', async () => {
+    test('204以外のステータスが返るとsubmitErrorが設定される', async () => {
       server.use(
         http.post('*/api/profile/setup', () => {
           return HttpResponse.json({ message: 'バリデーションエラー' }, { status: 400 });
         })
-      );
-
-      const { result } = await submitWithValidValues();
-
-      await waitFor(() => {
-        expect(result.current.submitError).toBe(unexpectedErrorMessage);
-      });
-    });
-
-    test('204・400以外のステータスが返るとsubmitErrorが設定される', async () => {
-      server.use(
-        http.post('*/api/profile/setup', () =>
-          HttpResponse.json({ message: 'サーバーエラー' }, { status: 500 })
-        )
       );
 
       const { result } = await submitWithValidValues();

@@ -12,6 +12,7 @@ export const db = isProd
   : drizzle({
       connection: {
         url: process.env.DATABASE_URL ?? 'file:./local.db',
-        authToken: process.env.TURSO_AUTH_TOKEN!,
+        // DATABASE_URLにTursoのURLを設定するローカル開発運用のため渡す。file:/:memory:では無視される
+        authToken: process.env.TURSO_AUTH_TOKEN,
       },
     });

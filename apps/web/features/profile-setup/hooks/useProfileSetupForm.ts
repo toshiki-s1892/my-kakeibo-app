@@ -39,10 +39,6 @@ export const useProfileSetupForm = () => {
           router.push('/dashboard');
           return;
         }
-        if (response.status === HTTP_STATUS.BAD_REQUEST) {
-          setSubmitError(unexpectedErrorMessage);
-          return;
-        }
         setSubmitError(unexpectedErrorMessage);
       },
       onError: () => {
