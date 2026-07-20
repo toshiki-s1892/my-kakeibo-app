@@ -73,6 +73,23 @@ describe('useProfileSetupForm', () => {
       });
     });
 
+    test('409が返るとダッシュボードへ遷移する', async () => {
+      server.use(
+        http.post('*/api/profile/setup', () => {
+          return HttpResponse.json(
+            { message: 'すでにプロフィールが登録されています' },
+            { status: 409 }
+          );
+        })
+      );
+
+      await submitWithValidValues();
+
+      await waitFor(() => {
+        expect(push).toHaveBeenCalledWith('/dashboard');
+      });
+    });
+
     test('フォーム値が変換されてAPIに送信される', async () => {
       let capturedBody: unknown;
       server.use(
@@ -96,7 +113,7 @@ describe('useProfileSetupForm', () => {
   });
 
   describe('異常系', () => {
-    test('204以外のステータスが返るとsubmitErrorが設定される', async () => {
+    test('204・409以外のステータスが返るとsubmitErrorが設定される', async () => {
       server.use(
         http.post('*/api/profile/setup', () => {
           return HttpResponse.json({ message: 'バリデーションエラー' }, { status: 400 });

@@ -34,8 +34,12 @@ export const useProfileSetupForm = () => {
   const { mutate, isPending } = usePostApiProfileSetup({
     mutation: {
       onSuccess: (response) => {
-        // ユーザー登録に成功した場合、ダッシュボードに遷移させる
-        if (response.status === HTTP_STATUS.NO_CONTENT) {
+        // ユーザー登録に成功、またはすでに登録済み（多重タブ・二重送信等）の場合は
+        // ダッシュボードに遷移させる（再試行しても解決しないエラーのため）
+        if (
+          response.status === HTTP_STATUS.NO_CONTENT ||
+          response.status === HTTP_STATUS.CONFLICT
+        ) {
           router.push('/dashboard');
           return;
         }

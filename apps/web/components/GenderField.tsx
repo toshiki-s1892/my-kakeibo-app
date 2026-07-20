@@ -13,8 +13,10 @@ type GenderFieldProps = {
 };
 
 export function GenderField({ required = false, value, onChange, errors }: GenderFieldProps) {
+  const hasError = !!errors?.some((error) => error?.message);
+
   return (
-    <Field>
+    <Field data-invalid={hasError}>
       <FieldLabel htmlFor="gender">
         性別
         {required && <RequiredLabel />}
@@ -25,6 +27,7 @@ export function GenderField({ required = false, value, onChange, errors }: Gende
         className="w-full"
         value={value ?? ''}
         onValueChange={onChange}
+        aria-invalid={hasError}
       >
         {GENDER_OPTIONS.map((option) => (
           <ToggleGroupItem className="flex-1" key={option.value} value={option.value}>

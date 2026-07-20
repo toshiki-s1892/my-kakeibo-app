@@ -9,6 +9,8 @@ export * from './postApiProfileSetup400';
 export * from './postApiProfileSetup400DetailsItem';
 export * from './postApiProfileSetup401';
 export * from './postApiProfileSetup401DetailsItem';
+export * from './postApiProfileSetup409';
+export * from './postApiProfileSetup409DetailsItem';
 export * from './postApiProfileSetup500';
 export * from './postApiProfileSetup500DetailsItem';
 export * from './postApiProfileSetupBody';

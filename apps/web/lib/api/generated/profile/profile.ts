@@ -15,6 +15,7 @@ import type {
 import type {
   PostApiProfileSetup400,
   PostApiProfileSetup401,
+  PostApiProfileSetup409,
   PostApiProfileSetup500,
   PostApiProfileSetupBody,
 } from '../models';
@@ -34,6 +35,11 @@ export type postApiProfileSetupResponse401 = {
   status: 401;
 };
 
+export type postApiProfileSetupResponse409 = {
+  data: PostApiProfileSetup409;
+  status: 409;
+};
+
 export type postApiProfileSetupResponse500 = {
   data: PostApiProfileSetup500;
   status: 500;
@@ -45,6 +51,7 @@ export type postApiProfileSetupResponseSuccess = postApiProfileSetupResponse204 
 export type postApiProfileSetupResponseError = (
   | postApiProfileSetupResponse400
   | postApiProfileSetupResponse401
+  | postApiProfileSetupResponse409
   | postApiProfileSetupResponse500
 ) & {
   headers: Headers;
@@ -80,7 +87,11 @@ export const postApiProfileSetup = async (
 };
 
 export const getPostApiProfileSetupMutationOptions = <
-  TError = PostApiProfileSetup400 | PostApiProfileSetup401 | PostApiProfileSetup500,
+  TError =
+    | PostApiProfileSetup400
+    | PostApiProfileSetup401
+    | PostApiProfileSetup409
+    | PostApiProfileSetup500,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -122,13 +133,18 @@ export type PostApiProfileSetupMutationBody = PostApiProfileSetupBody | undefine
 export type PostApiProfileSetupMutationError =
   | PostApiProfileSetup400
   | PostApiProfileSetup401
+  | PostApiProfileSetup409
   | PostApiProfileSetup500;
 
 /**
  * @summary ユーザープロフィールの作成
  */
 export const usePostApiProfileSetup = <
-  TError = PostApiProfileSetup400 | PostApiProfileSetup401 | PostApiProfileSetup500,
+  TError =
+    | PostApiProfileSetup400
+    | PostApiProfileSetup401
+    | PostApiProfileSetup409
+    | PostApiProfileSetup500,
   TContext = unknown,
 >(
   options?: {
