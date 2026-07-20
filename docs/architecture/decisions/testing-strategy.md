@@ -218,27 +218,85 @@ orvalの`mock: true`設定により`lib/api/generated/{feature}/{feature}.msw.ts
 - `apps/web/mocks/handlers.ts`: 全featureのorval生成ハンドラを集約する（`export const handlers = [...getProfileMock()]`）。feature追加時はこの配列に足すだけで、セットアップファイルは触らない。ディレクトリ名はMSW公式の`mocks/`慣例に従う（テスト専用ではなく、将来コンポーネントカタログのブラウザ側`setupWorker`からも同じ`handlers`を再利用できる配置）
 - `apps/web/vitest.setup.hooks.ts`: `setupServer(...handlers)`とライフサイクル管理（`beforeAll`で`listen`・`afterEach`で`resetHandlers`・`afterAll`で`close`）のみを持つ。`server`をexportし、異常系テストの`server.use()`による一時上書きに使う（`afterEach`の`resetHandlers`が上書きを毎回デフォルトに戻し、テスト間の独立性を保つ）
 
-**結合テスト用DBの構成:**
+**結合テスト用DBの構成（2026-07-20実装）:**
 
-`server/lib/db.ts` を環境ベースで分岐させ、本番（`NODE_ENV === 'production'`）以外はローカルSQLite/インメモリDBを使う。
+`server/lib/db.ts` を環境ベースで分岐させ、本番（`NODE_ENV === 'production'`）以外は `DATABASE_URL` 環境変数で接続先を差し替え可能にする。
 
 ```ts
 const isProd = process.env.NODE_ENV === 'production';
 
-export const db = drizzle({
-  connection: isProd
-    ? { url: process.env.TURSO_CONNECTION_URL!, authToken: process.env.TURSO_AUTH_TOKEN! }
-    : { url: process.env.DATABASE_URL ?? 'file:./local.db' },
+export const db = isProd
+  ? drizzle({
+      connection: {
+        url: process.env.TURSO_CONNECTION_URL!,
+        authToken: process.env.TURSO_AUTH_TOKEN!,
+      },
+    })
+  : drizzle({
+      connection: {
+        url: process.env.DATABASE_URL ?? 'file:./local.db',
+        // DATABASE_URLにTursoのURLを設定するローカル開発運用のため非本番でも渡す（file:/:memory:では無視される）
+        authToken: process.env.TURSO_AUTH_TOKEN,
+      },
+    });
+```
+
+- ローカル開発: `apps/web/.env.local` の `DATABASE_URL` に Turso のURLを設定し、従来どおり Turso に接続する。未設定時の `file:./local.db` は使用中の運用ではなく、設定漏れ時に本番データへ到達させないための安全ネット
+- 結合テスト: `vitest.setup.server.ts` がテストごとに使い捨てのファイルDBパスを `DATABASE_URL` に設定する（`:memory:`は不採用。理由は下記）
+- 本番: Turso 直結
+- `DATABASE_URL` があればそれを優先し無ければ Turso、という分岐（`isProd` 不使用）は不採用。テスト側の設定漏れ時にテストが本番Tursoへ到達できてしまうため、非本番からはTursoに明示設定なしで繋がらない**フェイルセーフ**方向に倒した
+
+**結合テストのDB分離（テストケース単位、2026-07-20実装、同日`:memory:`からファイルDBへ変更）:**
+
+`beforeEach`ごとに新規DBを作り直す（テストファイル単位で1つのDBを共有して手動クリーンアップする方式は、将来テーブルが増えた際にクリーンアップ漏れで他のテストに影響するリスクがあるため避ける）。
+
+**`:memory:`は不採用（2026-07-20判明、libsqlの既知バグ）:** 当初`:memory:`で実装したが、`profileSetupHandler`の結合テストで「`db.transaction()`のコミット後、直後のSELECTが`no such table`で失敗する」という現象が発生した。調査の結果、Honoを介さず`db.transaction()`単体でも再現し、`:memory:`のlibsqlデータベースで`db.transaction()`を使うとコミット後の変更が反映されないという、libsql-client-ts側の既知の未解決issue（[#140](https://github.com/tursodatabase/libsql-client-ts/issues/140)、2026-07時点でOpen、修正PRも未マージ）であると判明した。`handler.ts`のトランザクション実装自体は正当（ユーザー・家族メンバー・初期カテゴリの原子的INSERT）なため、アプリ側を直さずテストのDB戦略を変更した。同issueにファイルベースURLでは問題が起きないと明記されているため、**テストごとの使い捨てファイルDB**に切り替えた。
+
+ファイルの置き場所はOSの一時ディレクトリ（`os.tmpdir()`）ではなく、**プロジェクト内の`.gitignore`対象ディレクトリ**（`apps/web/.tmp-test-db/`）を使う。`os.tmpdir()`自体は一時ファイル用途として適切だが、開発者から見える場所に置くことを優先した。
+
+実装は `apps/web/vitest.setup.server.ts` に置く（`server`プロジェクトの全テストが無条件に必要とする前処理のため。個々のテストファイルには書かない。hooks層のMSW起動と同じ判断基準）:
+
+```ts
+import { migrate } from 'drizzle-orm/libsql/migrator';
+import { randomUUID } from 'node:crypto';
+import { mkdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+
+const TEST_DB_DIR = join(process.cwd(), '.tmp-test-db');
+let dbFile: string;
+
+beforeEach(async () => {
+  mkdirSync(TEST_DB_DIR, { recursive: true });
+  dbFile = join(TEST_DB_DIR, `${randomUUID()}.db`);
+  process.env.DATABASE_URL = `file:${dbFile}`;
+
+  vi.resetModules(); // モジュールキャッシュを破棄 → 次のimportで新しいDBへの接続が作られる
+  const { db } = await import('@/server/lib/db');
+  await migrate(db, { migrationsFolder: '../../packages/db/migrations' });
+});
+
+afterEach(() => {
+  rmSync(dbFile, { force: true }); // ディレクトリ自体は残すが.gitignore対象のため無害
 });
 ```
 
-- ローカル開発: `DATABASE_URL` 未設定時は `file:./local.db`
-- 結合テスト: テストのセットアップで `process.env.DATABASE_URL = ':memory:'` をセットしてからimportし、`drizzle-orm/libsql/migrator` の `migrate()` で `packages/db/migrations` を流し込む
-- 本番: Turso
+- `db.ts` はモジュールシングルトンのため、素朴に`migrate()`を再実行するだけでは適用履歴テーブル（`__drizzle_migrations`）により2回目以降がno-opになり、同じDBがテスト間で使い回されてしまう。`vi.resetModules()`でモジュールキャッシュを破棄し、直後の動的importでdb.tsを再実行させることで新しいDB接続を作る（[Vitest公式ドキュメント](https://vitest.dev/api/vi.html#vi-resetmodules)が示す標準パターン）
+- テスト対象（ルーター）やテスト内の`db`参照は、リセット後に**動的import**（`await import(...)`）で取得する。ファイル先頭のimport文は巻き上げにより`resetModules()`より先に評価され、古いインスタンスを掴むため
+- `DATABASE_URL`をturborepoの`turbo.json`の`globalEnv`に追加が必要（`turbo/no-undeclared-env-vars`lint対応）
+- **DI（dbを引数で渡す設計）は不採用（2026-07-20決定）**: テスト容易性単体ではDIが勝るが、現行のDAL（モジュールシングルトン）構成はNext.js公式推奨の「データアクセスの集約」に沿ったエコシステム標準形であり、DI化は`server/lib/`・ハンドラ全体のシグネチャ変更と組み立て場所（Composition Root）の導入を要する。外部依存すべてに差し替え点が確定している（下記「外部依存の差し替え方針」）現状では追加の利益がない。**再検討条件: 仕様に4つ目の外部サービスが追加されたとき**
+- スキーマ適用に`migrate()`（履歴ファイルの再生）を使う方式は、`pushSchema`（schema.tsから直接生成）方式と比べて、**マイグレーション履歴がゼロから再生可能であることの検証を毎回のテストが兼ねる**利点がある（2026-07-20に実際に旧履歴の再生不能を検出し、スカッシュに至った。経緯は[database.md](../database.md#マイグレーション運用履歴)参照）
 
-**結合テストのDB分離（テストケース単位）:**
+**外部依存の差し替え方針（2026-07-20決定）:**
 
-`:memory:`DBの生成・migrate()コストは低いため、**`beforeEach`ごとに新規`:memory:`DBを作り直す**（テストファイル単位で1つのDBを共有して手動クリーンアップする方式は、将来テーブルが増えた際にクリーンアップ漏れで他のテストに影響するリスクがあるため避ける）。
+サードパーティとの境界ごとに「差し替え点」を1箇所だけ設け、テストはそこで差し替える。差し替え点より内側（自分たちのロジック）は本物のまま検証する。仕様上の外部依存は以下で全部であり、**この表以外の差し替え機構は作らない**（新しい外部依存が仕様に追加された場合も、まずこの方針への追記として設計する）。
+
+| 依存                   | 差し替え点                                                    | テストでの差し替え方法     |
+| ---------------------- | ------------------------------------------------------------- | -------------------------- |
+| DB（Turso/libsql）     | `server/lib/db.ts` の接続URL                                  | 環境変数で`:memory:`へ切替 |
+| 認証（Clerk）          | `@clerk/hono` モジュール境界                                  | `vi.mock`（下記）          |
+| Gemini API（今後実装） | `server/lib/ai/` の薄いアダプタ関数（Geminiに触る唯一の場所） | `vi.mock`（Clerkと同型）   |
+
+Gemini実装時は、プロンプト組み立て・レスポンス解析など外部呼び出しを含まないロジックをアダプタから純粋関数として分離し、モックなしで単体テストする（schema層と同じ扱い）。
 
 **結合テストのClerk認証モック:**
 
@@ -248,12 +306,113 @@ Clerk公式も「サードパーティライブラリの内部実装に対する
 const { mockUserId } = vi.hoisted(() => ({ mockUserId: { current: 'test-user-id' } }));
 
 vi.mock('@clerk/hono', () => ({
-  clerkMiddleware: () => async (c: Context, next: Next) => {
-    c.set('clerkAuth', { userId: mockUserId.current });
-    await next();
+  clerkMiddleware: () => async (_c: Context, next: Next) => {
+    await next(); // 認証チェックをスキップして素通しするだけ
   },
-  getAuth: (c: Context) => c.get('clerkAuth'),
+  getAuth: () => ({ userId: mockUserId.current }),
 }));
 ```
 
+`clerkAuth`コンテキスト変数への格納（`c.set`/`c.get`）は行わない。`@clerk/hono`（2026-07時点 0.1.33）の型定義では`clerkAuth`変数の型が`GetAuthFnNoRequest`（関数）であり、認証情報オブジェクトを直接`c.set`すると型エラーになる。`clerkMiddleware`・`getAuth`はどちらも自前のモックなので、本物の内部実装（コンテキスト経由の受け渡し）を模倣する必要はなく、`getAuth`が`mockUserId`を直接参照すれば同じ契約（`getAuth(c)`が`{ userId }`を返す）を満たせる。
+
 `vi.hoisted()`で保持した変数をテストごとに書き換えることで、複数ユーザーが絡むテストケース（家族構成など）にも対応できる。Clerkの「Testing Tokens」（`@clerk/testing`）はブラウザ経由の実サインインフローでボット検知を回避する仕組みであり、`app.request()`で直接ハンドラを叩くこの層には不要。
+
+このモックブロックは**各テストファイルの冒頭に置く（2026-07-20決定）**。`vi.mock`はテストファイル単位で巻き上げられる仕様のため、セットアップファイルや共通関数への抽出は効かない。上記コード例をコピーして使い、ファイル間の重複は技術制約上の必要コストと割り切る。
+
+**server層テストの記述パターン（2026-07-20決定）:**
+
+- **describeグループ化はhooks層と同一ルール**: 外側の`describe`はテスト対象の英語識別子（ハンドラ名等）、その内側に`describe('正常系')`・`describe('異常系')`の分類ラベルを置く（ステータスコード分岐のシナリオが並列に並ぶ構造がhooks層と同型のため。ラベル専用describeに`beforeEach`・共有変数を置かない規定も同じ）。分類の切り口の整理: 分岐を持つロジックの層（hooks・server）はラベルあり、入力検証の列挙であるschema層はフィールド単位describeでラベルなし
+- **テストデータ生成等のArrangeヘルパーは2ファイル目が必要になった時点で共通化する**（何が必要かはテスト内容依存で事前に確定できないため。全テスト無条件の前処理をセットアップファイルに置く判断とは区別する）
+- **テスト対象のアプリは、本番の`app/api/[...route]/route.ts`を再利用せず、テストに必要な最小構成をファイル内で組み立てる**（`basePath`・`swaggerUI`等の無関係な設定を含めないため）。`profileRouter`は`db`と同じ理由（モジュールシングルトン）で`beforeEach`内での動的importが必要。`basePath('/api')`は含めない（サブルーター単体のテストに無関係な設定のため、[各層の検証責務](#各層の検証責務重複を避ける)の対象外）。ただし`app.onError(errorHandler)`は本番と同じ配線を再現するため必要（異常系のレスポンス整形はこのハンドラの責務のため）
+- **異常系はフィールド単位のバリデーション網羅をしない**（schema層で担保済みのため重複）。server層固有の価値がある2種類に絞る: (1) バリデーション失敗→`validationErrorHook`→`errorHandler`→`ErrorResponseSchema`形式という**配線全体**が動くかの確認（フィールドは代表で1つ欠けさせれば十分）、(2) DB制約違反・トランザクションの原子性など**schema層では検証できないサーバー内部の挙動**（例: ユニーク制約違反時に500が返り、かつ中途半端なデータが残っていないこと）
+- 401（未認証）は対象外: `proxy.ts`の`auth.protect()`がセッショントークン認証失敗時に404を返すため、`schema.ts`の401レスポンス定義は実質到達不能（[profile-setup.md](../../tasks/features/profile-setup.md)の既知の課題）。到達しない分岐はテストしない
+
+```ts
+import { errorHandler } from '@/server/shared/error-handler';
+import { clerkMiddleware } from '@clerk/hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
+import { usersTable } from '@repo/db/schema';
+import { Context, Next } from 'hono';
+
+const { mockUserId } = vi.hoisted(() => ({ mockUserId: { current: 'test-user-id' } }));
+
+vi.mock('@clerk/hono', () => ({
+  clerkMiddleware: () => async (_c: Context, next: Next) => {
+    await next();
+  },
+  getAuth: () => ({ userId: mockUserId.current }),
+}));
+
+describe('profileHandler', () => {
+  let app: OpenAPIHono;
+
+  beforeEach(async () => {
+    const profileRouter = (await import('@/server/routes/profile')).default;
+    app = new OpenAPIHono();
+    app.use('/profile/*', clerkMiddleware());
+    app.route('/profile', profileRouter);
+    app.onError(errorHandler);
+  });
+
+  describe('正常系', () => {
+    test('有効なリクエストボディを送るとユーザーが作成される', async () => {
+      const res = await app.request('/profile/setup', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'テスト太郎',
+          genderCode: 1,
+          birthday: '2000-01-01T00:00:00Z',
+          regionCode: 13,
+        }),
+        headers: new Headers({ 'Content-Type': 'application/json' }),
+      });
+      expect(res.status).toBe(204);
+
+      // レスポンスだけでなくDBへの反映まで確認する（server層の検証責務）
+      const { db } = await import('@/server/lib/db');
+      const users = await db.select().from(usersTable);
+      expect(users).toHaveLength(1);
+    });
+  });
+
+  describe('異常系', () => {
+    test('必須項目が欠けたリクエストを送るとバリデーションエラーが返る', async () => {
+      const res = await app.request('/profile/setup', {
+        method: 'POST',
+        body: JSON.stringify({
+          // nameを省略
+          genderCode: 1,
+          birthday: '2000-01-01T00:00:00Z',
+          regionCode: 13,
+        }),
+        headers: new Headers({ 'Content-Type': 'application/json' }),
+      });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ message: expect.any(String) });
+    });
+
+    test('既にセットアップ済みのユーザーが再度送信すると失敗する', async () => {
+      const validBody = JSON.stringify({
+        name: 'テスト太郎',
+        genderCode: 1,
+        birthday: '2000-01-01T00:00:00Z',
+        regionCode: 13,
+      });
+      const headers = new Headers({ 'Content-Type': 'application/json' });
+
+      await app.request('/profile/setup', { method: 'POST', body: validBody, headers }); // 1回目（成功）
+      const res = await app.request('/profile/setup', { method: 'POST', body: validBody, headers }); // 2回目（clerk_idのユニーク制約違反）
+
+      expect(res.status).toBe(500);
+
+      const { db } = await import('@/server/lib/db');
+      const users = await db.select().from(usersTable);
+      expect(users).toHaveLength(1); // 1回目の1件だけで、増えていない（トランザクションの原子性）
+    });
+  });
+});
+```
+
+`app.request()`の使い方は[Hono公式: Testing Helper](https://hono.dev/docs/guides/testing)参照。POSTボディは`JSON.stringify()`し`Content-Type: application/json`ヘッダを明示する。
+
+異常系テストでは`errorHandler`内の`console.error`（想定外エラーのログ出力）が実行時に出力されるが、これは意図的に発生させた500エラーが正しくログ記録されている証跡であり、テスト失敗ではない。

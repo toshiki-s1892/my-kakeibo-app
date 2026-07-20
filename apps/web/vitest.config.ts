@@ -17,6 +17,7 @@ export default defineConfig({
           name: 'server',
           environment: 'node',
           include: ['server/routes/**/__tests__/*.test.{ts,tsx}'],
+          setupFiles: ['./vitest.setup.server.ts'],
         },
       },
       {

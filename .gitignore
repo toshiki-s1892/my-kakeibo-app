@@ -7,6 +7,7 @@ node_modules
 
 # testing
 coverage
+apps/web/.tmp-test-db/
 
 # next.js
 .next/

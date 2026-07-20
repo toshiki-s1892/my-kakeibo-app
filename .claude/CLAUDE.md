@@ -26,6 +26,8 @@
 - エラーハンドリング・認証・ログなど横断的関心事（cross-cutting concerns）を実装するときは、既存の他のエラー処理と統合できないか必ず全体像を確認してから提案すること
 - ユーザーが代替案を質問してきた場合は、即座に否定せず、全体アーキテクチャへの影響を調査してから回答すること
 - DB アクセスは UI コンポーネントやレイアウトに直接書かず、`server/lib/` にヘルパー関数として切り出すこと（Next.js 公式が推奨する DAL パターン）
+- DB スキーマの適用は `drizzle-kit migrate` を使うこと（`db:push` は適用履歴を記録せず、結合テストが再生するマイグレーションファイルと実DBの整合を保証できないため使わない。[stack.md](../docs/architecture/decisions/stack.md#マイグレーション運用drizzle-kit-generate--migrate2026-07-20にpush運用から変更)参照）
+- 外部サービス（Gemini 等）の新規接続は `server/lib/` に薄いアダプタを1箇所だけ作り、テストはそのモジュール境界を `vi.mock` で差し替えること。依存ごとに新しい差し替え機構を発明しない（[testing-strategy.md](../docs/architecture/decisions/testing-strategy.md#外部依存の差し替え方針2026-07-20決定)参照）
 - ライブラリ・フレームワークの使い方や構成を提示する際は、必ず公式ドキュメントを確認してから回答すること
 - 非推奨 API や破壊的変更がある可能性があるため、バージョンも考慮すること
 - ユーザーが自分で実装したいため、明示的に依頼されない限りファイルの変更・作成を行わないこと。問題の指摘や説明にとどめること
@@ -65,7 +67,7 @@
   - orval 生成 hooks は HTTP エラーでも throw しないため `mutateAsync` + `try/catch` は機能しない
 - テストの記述規約（詳細は [testing-strategy.md](../docs/architecture/decisions/testing-strategy.md) 参照）
   - `describe` はコードの識別子を英語のまま（`Tests` 接尾辞・ファイル全体を括る describe は不要）、テスト名は日本語で振る舞いを書くこと
-  - hooks 層テストのみ、外側 describe（フック名）の内側に `describe('正常系')`・`describe('異常系')` の分類ラベルを置くこと（ラベル専用。beforeEach・共有変数は置かない）。schema 層はフィールド単位 describe でラベル不使用（従来どおり）
+  - hooks 層・server 層のテストは、外側 describe（フック名・ハンドラ名）の内側に `describe('正常系')`・`describe('異常系')` の分類ラベルを置くこと（ラベル専用。beforeEach・共有変数は置かない）。schema 層はフィールド単位 describe でラベル不使用（分岐を持つロジックの層はラベルあり、入力検証の列挙の層はラベルなし、という整理）
   - テスト名は検証している規則を書き、サンプル値を書かないこと（「500が返ると」ではなく「204・400以外のステータスが返ると」。ステータス専用分岐の 204・400 は名前に書いてよい）
   - テストヘルパーは Arrange（＋共通 Act）のみ抽出し、`expect` は各テストに残すこと。引数フラグで分岐するヘルパーは作らない（AHA 原則）
   - `it` ではなく `test` を使うこと。`describe`/`test`/`expect`/`vi` 等の vitest API は **globals: true 設定済みのため import 不要**（新規テストでは import を書かない。tsconfig への `vitest/globals` 追加もセットで必要）

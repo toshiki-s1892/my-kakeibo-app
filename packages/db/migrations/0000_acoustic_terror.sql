@@ -15,16 +15,47 @@ CREATE TABLE `ai_advice_sessions` (
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict
 );
 --> statement-breakpoint
-CREATE TABLE `category_pins` (
-	`id` text PRIMARY KEY NOT NULL,
+CREATE TABLE `ai_usage_logs` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`user_id` text NOT NULL,
-	`category_id` text NOT NULL,
+	`feature_code` integer NOT NULL,
+	`family_member_id` text,
+	`content` text,
 	`created_at` integer NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict,
-	FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON UPDATE no action ON DELETE restrict
+	FOREIGN KEY (`family_member_id`) REFERENCES `family_members`(`id`) ON UPDATE no action ON DELETE restrict
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `category_pins_idx` ON `category_pins` (`user_id`,`category_id`);--> statement-breakpoint
+CREATE TABLE `categories` (
+	`id` text PRIMARY KEY NOT NULL,
+	`user_id` text NOT NULL,
+	`type_code` integer NOT NULL,
+	`name` text(50) NOT NULL,
+	`icon` text NOT NULL,
+	`color` text NOT NULL,
+	`parent_id` text,
+	`is_pinned` integer DEFAULT false NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`deleted_at` integer,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict,
+	FOREIGN KEY (`parent_id`) REFERENCES `categories`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `categories_user_type_name_idx` ON `categories` (`user_id`,`type_code`,`name`) WHERE "categories"."deleted_at" IS NULL;--> statement-breakpoint
+CREATE TABLE `family_members` (
+	`id` text PRIMARY KEY NOT NULL,
+	`user_id` text NOT NULL,
+	`name` text(50) NOT NULL,
+	`relationship_code` integer NOT NULL,
+	`gender_code` integer NOT NULL,
+	`birthday` integer NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`deleted_at` integer,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict
+);
+--> statement-breakpoint
 CREATE TABLE `recurring_transaction_logs` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`recurring_transaction_id` text NOT NULL,
@@ -67,38 +98,32 @@ CREATE TABLE `transaction_parties` (
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict
 );
 --> statement-breakpoint
-PRAGMA foreign_keys=OFF;--> statement-breakpoint
-CREATE TABLE `__new_ai_usage_logs` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+CREATE TABLE `transactions` (
+	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
-	`feature_code` integer NOT NULL,
-	`family_member_id` text,
-	`content` text,
+	`family_member_id` text NOT NULL,
+	`category_id` text NOT NULL,
+	`amount` integer NOT NULL,
+	`transaction_date` text,
+	`description` text(255),
+	`party_id` text,
+	`source_recurring_transaction_id` text,
 	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict,
-	FOREIGN KEY (`family_member_id`) REFERENCES `family_members`(`id`) ON UPDATE no action ON DELETE restrict
+	FOREIGN KEY (`family_member_id`) REFERENCES `family_members`(`id`) ON UPDATE no action ON DELETE restrict,
+	FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`party_id`) REFERENCES `transaction_parties`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`source_recurring_transaction_id`) REFERENCES `recurring_transactions`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-INSERT INTO `__new_ai_usage_logs`("id", "user_id", "feature_code", "family_member_id", "content", "created_at") SELECT "id", "user_id", "feature_code", "family_member_id", "content", "created_at" FROM `ai_usage_logs`;--> statement-breakpoint
-DROP TABLE `ai_usage_logs`;--> statement-breakpoint
-ALTER TABLE `__new_ai_usage_logs` RENAME TO `ai_usage_logs`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;--> statement-breakpoint
-DROP INDEX "category_pins_idx";--> statement-breakpoint
-DROP INDEX "recurring_transaction_log_idx";--> statement-breakpoint
-DROP INDEX "users_clerk_id_unique";--> statement-breakpoint
-ALTER TABLE `categories` ALTER COLUMN "created_at" TO "created_at" integer NOT NULL;--> statement-breakpoint
-CREATE UNIQUE INDEX `users_clerk_id_unique` ON `users` (`clerk_id`);--> statement-breakpoint
-ALTER TABLE `categories` ADD `icon` text NOT NULL;--> statement-breakpoint
-ALTER TABLE `categories` ADD `color` text NOT NULL;--> statement-breakpoint
-ALTER TABLE `categories` ADD `parent_id` text REFERENCES categories(id);--> statement-breakpoint
-ALTER TABLE `categories` ADD `updated_at` integer NOT NULL;--> statement-breakpoint
-ALTER TABLE `categories` ADD `deleted_at` integer;--> statement-breakpoint
-ALTER TABLE `family_members` ALTER COLUMN "created_at" TO "created_at" integer NOT NULL;--> statement-breakpoint
-ALTER TABLE `family_members` ADD `updated_at` integer NOT NULL;--> statement-breakpoint
-ALTER TABLE `transactions` ALTER COLUMN "transaction_date" TO "transaction_date" text;--> statement-breakpoint
-ALTER TABLE `transactions` ALTER COLUMN "created_at" TO "created_at" integer NOT NULL;--> statement-breakpoint
-ALTER TABLE `transactions` ALTER COLUMN "updated_at" TO "updated_at" integer NOT NULL;--> statement-breakpoint
-ALTER TABLE `transactions` ADD `description` text(255);--> statement-breakpoint
-ALTER TABLE `transactions` ADD `party_id` text REFERENCES transaction_parties(id);--> statement-breakpoint
-ALTER TABLE `transactions` ADD `source_recurring_transaction_id` text REFERENCES recurring_transactions(id);--> statement-breakpoint
-ALTER TABLE `transactions` DROP COLUMN `memo`;
+CREATE TABLE `users` (
+	`id` text PRIMARY KEY NOT NULL,
+	`clerk_id` text NOT NULL,
+	`region_code` integer NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`deleted_at` integer
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `users_clerk_id_unique` ON `users` (`clerk_id`);

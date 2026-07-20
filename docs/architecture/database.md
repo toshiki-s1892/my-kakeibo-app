@@ -55,6 +55,13 @@ recurring_transaction_logs
   ※ (recurringTransactionId, scheduledDate) に一意制約（Cronの二重実行による重複生成を防ぐ）
 ```
 
+## マイグレーション運用・履歴
+
+- 適用は `drizzle-kit generate` → `drizzle-kit migrate` で行う（2026-07-20に`push`運用から変更。理由と経緯は[decisions/stack.md](./decisions/stack.md#マイグレーション運用drizzle-kit-generate--migrate2026-07-20にpush運用から変更)参照）
+- **2026-07-20にマイグレーション履歴をスカッシュ**し、`0000_acoustic_terror.sql`（全10テーブルのベースライン1本）に一本化した
+  - 経緯: 結合テスト基盤が`migrate()`で履歴を空DBに再生したところ、旧12ファイル中4ファイルが再生不能だった。原因はdrizzle-kitがテーブル再作成SQL（`CREATE TABLE __new_x` → `INSERT INTO ... SELECT` → `DROP`/`RENAME`）の`SELECT`リストに「そのマイグレーション自身で追加した列」を含めてしまう挙動（旧テーブルに存在しない列のため`no such column`で失敗する）
+  - 適用済みファイルの手修正は「ファイル内容と実際に実行されたSQLの乖離」を生むため不採用とし、本番リリース前でTursoのデータが使い捨て可能な今のうちに、全テーブル削除→ベースライン再適用でクリーンな履歴に作り直した
+
 ## 命名規則
 
 Drizzleのテーブル変数は`usersTable`・`familyMembersTable`のように`Table`サフィックスをつける（`packages/db/src/schema/*.ts`）。
