@@ -1,8 +1,7 @@
 import { GENDER_CODE, unexpectedErrorMessage } from '@repo/common';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { ReactNode } from 'react';
+import { createQueryClientWrapper } from 'vitest.utils.hooks';
 import { server } from 'vitest.setup.hooks';
 import { ProfileSetupFormValues } from '../../schema/profileSetupFormSchema';
 import { useProfileSetupForm } from '../useProfileSetupForm';
@@ -12,29 +11,6 @@ const push = vi.hoisted(() => vi.fn());
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
 }));
-
-// テスト用のQueryClientProviderを作る（フック内のusePostApiProfileSetupがTanStack Query依存のため）
-const createWrapper = () => {
-  // テストごとにQueryClientを作り、通信状態・キャッシュがテスト間で共有されるのを防ぐ
-  // Wrapperの外で作ることで再レンダリング時に作り直されない（本番app/providers.tsxのuseStateと同じ目的）
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      mutations: {
-        retry: false, // 失敗時の自動リトライを無効化（異常系テストがリトライ待ちでタイムアウトしないように）
-      },
-      queries: {
-        retry: false, // 失敗時の自動リトライを無効化（異常系テストがリトライ待ちでタイムアウトしないように）
-      },
-    },
-  });
-
-  // TanStack Queryのフックは外側にQueryClientProviderが必要なため、テストでもその環境を作る（本番はapp/providers.tsxが同じ役割）
-  const Wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-
-  return Wrapper;
-};
 
 // フォーム値を宣言
 const validValues: ProfileSetupFormValues = {
@@ -47,7 +23,7 @@ const validValues: ProfileSetupFormValues = {
 // useProfileSetupFormをrenderし、正常な値でフォームを送信するところまで進める
 const submitWithValidValues = async () => {
   const { result } = renderHook(() => useProfileSetupForm(), {
-    wrapper: createWrapper(),
+    wrapper: createQueryClientWrapper(),
   });
 
   // setValue・onSubmitはフォーム状態（値・エラー・送信中フラグ）を更新するため、actで包んで反映を確定させてから検証する
@@ -139,7 +115,7 @@ describe('useProfileSetupForm', () => {
 
     test('バリデーションエラー時はAPIが呼ばれずダッシュボードへ遷移しない', async () => {
       const { result } = renderHook(() => useProfileSetupForm(), {
-        wrapper: createWrapper(),
+        wrapper: createQueryClientWrapper(),
       });
 
       await act(async () => {
