@@ -28,7 +28,7 @@ export const ProfileSetupForm = ({
   onSignOut,
 }: ProfileSetupFormProps) => {
   return (
-    <Card className="w-full sm:max-w-md p-6">
+    <Card className="w-full p-6 sm:max-w-md">
       <CardHeader className="text-center">
         <CardTitle className="font-bold">ようこそ、かけぼへ</CardTitle>
         <CardDescription>まずはあなたの情報を教えてください</CardDescription>
@@ -91,7 +91,7 @@ export const ProfileSetupForm = ({
         <Button
           type="submit"
           form="profile-setup-form"
-          className="w-full mt-5"
+          className="mt-5 w-full"
           disabled={isPending}
         >
           はじめる

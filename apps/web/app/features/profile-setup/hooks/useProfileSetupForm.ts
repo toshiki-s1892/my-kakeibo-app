@@ -1,3 +1,4 @@
+import { ApiError } from '@/lib/api/api-error';
 import { usePostApiProfileSetup } from '@/lib/api/generated/profile/profile';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { GENDER_CODE, HTTP_STATUS, unexpectedErrorMessage } from '@repo/common';
@@ -33,19 +34,16 @@ export const useProfileSetupForm = () => {
   // プロフィール登録APIの呼び出し定義
   const { mutate, isPending } = usePostApiProfileSetup({
     mutation: {
-      onSuccess: (response) => {
-        // ユーザー登録に成功、またはすでに登録済み（多重タブ・二重送信等）の場合は
-        // ダッシュボードに遷移させる（再試行しても解決しないエラーのため）
-        if (
-          response.status === HTTP_STATUS.NO_CONTENT ||
-          response.status === HTTP_STATUS.CONFLICT
-        ) {
+      onSuccess: () => {
+        router.push('/dashboard');
+      },
+      onError: (error) => {
+        // すでに登録済み（多重タブ・二重送信等）の場合はダッシュボードに遷移させる
+        // （再試行しても解決しないエラーのため）
+        if (error instanceof ApiError && error.status === HTTP_STATUS.CONFLICT) {
           router.push('/dashboard');
           return;
         }
-        setSubmitError(unexpectedErrorMessage);
-      },
-      onError: () => {
         setSubmitError(unexpectedErrorMessage);
       },
     },

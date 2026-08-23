@@ -1,5 +1,5 @@
 'use client';
-import { Logo } from '@/components/Logo';
+import { LogoIcon } from '@/components/icons/LogoIcon';
 import { useClerk } from '@clerk/nextjs';
 import { ProfileSetupForm } from '../components/ProfileSetupForm';
 import { useProfileSetupForm } from '../hooks/useProfileSetupForm';
@@ -9,8 +9,8 @@ export const ProfileSetupRoute = () => {
   const { signOut } = useClerk();
 
   return (
-    <div className="w-full min-w-screen min-h-screen flex flex-col items-center">
-      <Logo />
+    <div className="flex min-h-screen w-full min-w-screen flex-col items-center">
+      <LogoIcon />
       <ProfileSetupForm
         form={form}
         onSubmit={onSubmit}
