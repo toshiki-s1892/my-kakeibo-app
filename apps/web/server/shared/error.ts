@@ -1,6 +1,6 @@
 import z from 'zod';
 
-export const ErrorResponseSchema = z.object({
+export const errorResponseSchema = z.object({
   message: z.string().openapi({ example: 'エラーメッセージ' }),
   details: z
     .array(

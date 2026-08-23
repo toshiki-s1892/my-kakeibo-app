@@ -1,15 +1,6 @@
+import { errorResponseSchema } from '@/server/shared/error';
 import { createRoute } from '@hono/zod-openapi';
-import { GENDER_CODE } from '@repo/common';
-import z from 'zod';
-import { ErrorResponseSchema } from '../../shared/error';
-
-// ユーザープロフィール作成リクエストのスキーマ
-const UserSetupRequestSchema = z.object({
-  name: z.string().min(1).max(50).openapi({ example: '山田太郎' }),
-  genderCode: z.enum(GENDER_CODE).openapi({ example: 1 }),
-  birthday: z.iso.datetime().openapi({ example: '2000-01-01T00:00:00Z' }),
-  regionCode: z.number().int().min(1).max(47).openapi({ example: 13 }),
-});
+import { userSetupRequestSchema } from '../request/profileSetupRequest';
 
 export const createUserRoute = createRoute({
   method: 'post',
@@ -18,7 +9,7 @@ export const createUserRoute = createRoute({
   summary: 'ユーザープロフィールの作成',
   description: 'ユーザープロフィールを作成するエンドポイントです。',
   request: {
-    body: { content: { 'application/json': { schema: UserSetupRequestSchema } } },
+    body: { content: { 'application/json': { schema: userSetupRequestSchema } } },
   },
   responses: {
     204: {
@@ -28,7 +19,7 @@ export const createUserRoute = createRoute({
       description: 'リクエストのバリデーションエラー',
       content: {
         'application/json': {
-          schema: ErrorResponseSchema,
+          schema: errorResponseSchema,
         },
       },
     },
@@ -36,7 +27,7 @@ export const createUserRoute = createRoute({
       description: '認証されていない場合',
       content: {
         'application/json': {
-          schema: ErrorResponseSchema,
+          schema: errorResponseSchema,
         },
       },
     },
@@ -44,7 +35,7 @@ export const createUserRoute = createRoute({
       description: 'すでにプロフィールが登録されている場合',
       content: {
         'application/json': {
-          schema: ErrorResponseSchema,
+          schema: errorResponseSchema,
         },
       },
     },
@@ -52,7 +43,7 @@ export const createUserRoute = createRoute({
       description: 'サーバーエラー',
       content: {
         'application/json': {
-          schema: ErrorResponseSchema,
+          schema: errorResponseSchema,
         },
       },
     },

@@ -1,4 +1,5 @@
 import '@/lib/zod-locale';
+import categoriesRouter from '@/server/routes/categories';
 import profileRouter from '@/server/routes/profile';
 import { errorHandler } from '@/server/shared/error-handler';
 import { clerkMiddleware } from '@clerk/hono';
@@ -10,7 +11,10 @@ export const runtime = 'edge';
 const app = new OpenAPIHono().basePath('/api');
 
 app.use('/profile/*', clerkMiddleware());
+app.use('/categories/*', clerkMiddleware());
+
 app.route('/profile', profileRouter);
+app.route('/categories', categoriesRouter);
 
 app.onError(errorHandler);
 

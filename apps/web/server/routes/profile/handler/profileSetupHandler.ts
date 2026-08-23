@@ -1,13 +1,13 @@
 import { getAuth } from '@clerk/hono';
 import { RouteHandler } from '@hono/zod-openapi';
+import { LibsqlError } from '@libsql/client';
 import { alreadySetupMessage, HTTP_STATUS, RELATIONSHIP_CODE } from '@repo/common';
 import { categoriesTable, familyMembersTable, usersTable } from '@repo/db/schema';
-import { LibsqlError } from '@libsql/client';
 import { DrizzleQueryError } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
-import { db } from '../../lib/db';
-import { DEFAULT_CATEGORIES } from './defaultCategories';
-import { createUserRoute } from './schema';
+import { db } from '../../../lib/db';
+import { DEFAULT_CATEGORIES } from '../defaultCategories';
+import { createUserRoute } from '../schema/profileSetupSchema';
 
 export const profileSetupHandler: RouteHandler<typeof createUserRoute> = async (c) => {
   // Clerkの認証情報から userId（clerk_id）を取得
