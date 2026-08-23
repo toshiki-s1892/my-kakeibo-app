@@ -6,6 +6,7 @@ import { cn } from '@/components/lib/utils';
 
 function Label({ className, ...props }: React.ComponentProps<'label'>) {
   return (
+    // eslint-disable-next-line jsx-a11y/label-has-associated-control -- 汎用ラッパー。htmlFor/childrenは使用箇所から渡される
     <label
       data-slot="label"
       className={cn(

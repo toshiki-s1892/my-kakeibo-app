@@ -1,9 +1,12 @@
 @import 'tailwindcss';
 
 @theme {
+  --color-background: var(--backgraiybd);
   --color-primary-100: #10b981; /* ロゴ背景 */
   --color-primary-200: #006c49; /* メインボタン・アクティブ状態 */
   --color-primary-300: #005136;
   --color-expense: #e11d48; /* 支出（新規） */
   --color-balance: #2563eb; /* 収支（新規） */
+  --color-nav-hover-bg: #b6eccd; /* 下部ナビ ホバー背景 */
+  --color-tab-track: #ddece1; /* 支出/収入タブ（SP版セグメントコントロール）トラック背景 */
 }
