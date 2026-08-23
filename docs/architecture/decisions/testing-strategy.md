@@ -221,20 +221,30 @@ orvalの`mock: true`設定により`lib/api/generated/{feature}/{feature}.msw.ts
 - `apps/web/mocks/handlers/{feature}.ts`: そのfeatureのモックに独自ロジックが必要な場合だけ作成する（例: `categories.ts`）。デフォルトの自動生成モック（`getXxxMock()`）をそのまま使うだけのfeatureは個別ファイルを作らず、`index.ts`から直接orval生成の`get{Feature}Mock()`を呼ぶ。MSW公式の[Structuring handlers](https://mswjs.io/docs/best-practices/structuring-handlers)が推奨する「まず単一ファイル、複雑になったfeatureだけドメイン別ファイルに分割する」段階的方針に従う
 - `apps/web/vitest.setup.hooks.ts`: `setupServer(...handlers)`とライフサイクル管理（`beforeAll`で`listen`・`afterEach`で`resetHandlers`・`afterAll`で`close`）のみを持つ。`server`をexportし、異常系テストの`server.use()`による一時上書きに使う（`afterEach`の`resetHandlers`が上書きを毎回デフォルトに戻し、テスト間の独立性を保つ）
 
-**クエリパラメータに応じた動的モックの書き方（2026-08-01実装、categoriesが最初の適用例）:**
+**クエリパラメータに応じた動的モックの書き方（2026-08-01実装、2026-08-24改訂、categoriesが最初の適用例）:**
 
 orval生成の`get{Operation}MockHandler`は`overrideResponse`に関数を渡すと、リクエスト情報を受け取って動的にレスポンスを組み立てられる（`Category[]`のような値だけでなく、`(info) => Category[]`という関数も型として許容されている）。クエリパラメータは`new URL(info.request.url).searchParams`で読み取る（[MSW公式のQuery parameters](https://mswjs.io/docs/http/intercepting-requests/query-parameters)と同じ書き方）。
 
+**制約: `overrideResponse`はステータス200固定。** 生成コードは常に`HttpResponse.json(overrideResponseの結果, { status: 200 })`でラップするため（`overrideResponse`の型も`GetApiCategories200`という成功時のデータ型のみを許容し、`HttpResponse`は渡せない）、500等のエラーレスポンスをこのヘルパー経由で表現することはできない。エラーを含めて分岐したい場合は、`getGetApiCategoriesMockHandler`を使わず`http.get`・`HttpResponse`（`msw`から直接import）で生ハンドラを書き、成功時も含めた全分岐を自前で`HttpResponse.json(...)`にラップする。
+
 ```ts
-export const categoriesHandler = getGetApiCategoriesMockHandler((info) => {
+export const categoriesHandler = http.get('*/api/categories', async (info) => {
   const url = new URL(info.request.url);
+  // ブラウザのアドレスバー（ページURL）を見る。MSWのresolverはメインスレッド（アプリのJSランタイム）で実行されるため、
+  // window.location・localStorage等のブラウザAPIに直接アクセスできる（info.request.urlは実際にfetchされる/api/categories自体のURLで別物）
+  const mockState = new URL(window.location.href).searchParams.get('mockState');
+
+  if (mockState === 'error') {
+    return HttpResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
+
   const typeCode =
     Number(url.searchParams.get('typeCode')) === CATEGORY_TYPE.INCOME
       ? CATEGORY_TYPE.INCOME
       : CATEGORY_TYPE.EXPENSE;
 
   const withConsistentTypeCode = (
-    data: ReturnType<typeof getGetApiCategoriesResponseMock>[number]
+    data: ReturnType<typeof getGetApiCategoriesResponseMock>['categories'][number]
   ) => ({
     ...data,
     typeCode,
@@ -242,18 +252,29 @@ export const categoriesHandler = getGetApiCategoriesMockHandler((info) => {
     children: data.children.map((child) => ({ ...child, typeCode, parentId: data.id })),
   });
 
-  const categories = getGetApiCategoriesResponseMock().map(withConsistentTypeCode);
+  const categories = getGetApiCategoriesResponseMock().categories.map(withConsistentTypeCode);
   while (categories.length < MIN_SAMPLE_CATEGORIES) {
-    categories.push(...getGetApiCategoriesResponseMock().map(withConsistentTypeCode));
+    categories.push(...getGetApiCategoriesResponseMock().categories.map(withConsistentTypeCode));
   }
 
-  return categories;
+  if (mockState === 'empty') return HttpResponse.json({ categories: [] });
+  if (mockState === 'noChildren') {
+    return HttpResponse.json({ categories: categories.map((c) => ({ ...c, children: [] })) });
+  }
+
+  return HttpResponse.json({ categories });
 });
 ```
 
 - `Number(...) === CATEGORY_TYPE.INCOME ? ... : ...`で絞り込む（`===`の等価判定でないと`CategoryTypeCode`のリテラル型`1 | 2`に絞り込まれず型エラーになる。想定外の値はEXPENSEにフォールバックする、エラーにはしない。フロント側は`CATEGORY_TYPE`経由でしか`typeCode`を送らないため実際に想定外の値が来ることはなく、実APIのzodバリデーションが担うべき検証をモック側で肩代わりする必要はない）
 - 件数を`while`+`push(...)`で下限保証する（`if`によるスキップだと、fakerの生成数が足りない回だけ画面確認・テストで想定したデータ（親子関係など）が現れない不安定さが残るため）
 - `withConsistentTypeCode`で`parentId`・`typeCode`をfakerのランダム値から仕様どおりの値に上書きする（GET `/api/categories`はネスト構造で返すため、orval生成の`getGetApiCategoriesResponseMock()`はトップレベル要素の`children`に子カテゴリを含めてランダム生成するが、各フィールドは独立して生成されるため、子の`parentId`が実際の親の`id`と一致しない・親子で`typeCode`が食い違う、といった不整合が起きる。トップレベルは`parentId: null`固定、`children`の各要素は`parentId`をその親の`id`に固定し、`typeCode`もトップレベルと揃える）
+
+**ブラウザでの手動モックシナリオ切り替え（`mockState`、2026-08-24実装）:**
+
+開発中にブラウザで空データ・子カテゴリなし・エラーの見た目を確認したい需要から、`categories.ts`のハンドラは上記の通り`window.location`の`mockState`クエリパラメータを見て応答を出し分ける。ブラウザのアドレスバーで`http://localhost:3001/categories?mockState=empty`のようにURLを直接書き換えてリロードするだけで反映される（値変更後はTanStack Queryのキャッシュを介さないよう毎回リロードする運用。値は`empty`・`noChildren`・`error`の3種、それ以外はデフォルトの正常系データにフォールバックする。バリデーション・警告は無し）。
+
+この仕組みは現状`categories.ts`専用であり、共通ヘルパーへの切り出しはしていない（[Structuring handlers](https://mswjs.io/docs/best-practices/structuring-handlers)の「まず単一ファイル、複雑になったfeatureだけ分割する」段階的方針、およびこのファイル冒頭の重複3件ルールに従う）。2件目のfeature（取引記録等の一覧画面）で同様の切り替えが必要になったタイミングで、共通化の要否を再検討する。
 
 **ブラウザでのMSW起動（開発サーバー、`NEXT_PUBLIC_API_MOCKING=enabled`時）:**
 

@@ -22,9 +22,10 @@
 ## フロントエンド
 
 - [ ] 1. カテゴリ一覧画面（`CategoriesRoute`・`CategoryTable`）を実装中
-  - `CategoryTable` のpropsは `categories: CategoryListItem[]`（生成型 `CategoryWithChildren` のローカルエイリアス。[frontend-conventions.mdのコンポーネントpropsの型](../../architecture/decisions/frontend-conventions.md#コンポーネントpropsの型2026-08-11決定)参照）のみとし、ローディング・エラー・再試行は `CategoriesRoute` 側で処理する（[frontend-conventions.mdのエラーハンドリング方針](../../architecture/decisions/frontend-conventions.md#フロントエンドのエラーハンドリング方針)に従う）
+  - `CategoryTable` のpropsは `categories: ReturnType<typeof useCategories>`（クエリオブジェクト丸ごと）とし、`QueryBoundary`（[frontend-conventions.mdのQueryBoundaryセクション](../../architecture/decisions/frontend-conventions.md#フロントエンドのエラーハンドリング方針)参照）によるローディング・エラー・再試行の出し分けは`CategoryTable`内に集約する（2026-08-24決定。`CategoryListItem[]`のみを受け取り`CategoriesRoute`側で処理する当初案からの変更。理由は`QueryBoundary`が一覧・サマリー系画面共通の仕組みとして`isPending`/`error`/`onRetry`をpropsで受け取る設計になっており、クエリオブジェクトを保持するコンポーネント側に処理を寄せた方が自然なため）
   - カテゴリ行は親・単独・子カテゴリの差分が少ないため、まず `CategoryRow` 1コンポーネントに `'children' in category` での構造的な型絞り込みで実装し、複雑になった場合のみ `ParentCategoryRow`/`ChildCategoryRow` への分割を検討する（YAGNI優先）
   - 子カテゴリの開閉状態はクライアント側ローカルUI状態（[specs/features/categories.md](../../specs/features/categories.md#一覧での開閉表示)参照）。各行コンポーネントが自前で `useState(true)` を持ち、`CategoryTable` 側での一元管理はしない
+  - 開発中に空データ・子カテゴリなし・エラーの見た目を確認する場合は、ブラウザで`/categories?mockState=empty`（`empty`/`noChildren`/`error`）のようにURLを直接書き換えてリロードする（詳細は[testing-strategy.mdのブラウザでの手動モックシナリオ切り替え](../../architecture/decisions/testing-strategy.md#フックテストのmswモック方針)参照）
 - [ ] 2. カテゴリ作成・編集フォームに「親カテゴリ」Select項目を追加（[design/categories/create.md](../../design/categories/create.md#今後反映予定の変更モックアップ未更新)参照。現行モックアップには未反映のため、Stitch再生成も別途必要）。その直下に常設のヘルプテキスト+ヘルプページ（`/help#categories`）へのリンクを表示（[specs/features/categories.md](../../specs/features/categories.md#親カテゴリグラフ上のグルーピング)の「発見しやすさへの配慮」参照）
 - [ ] 3. カテゴリ作成・編集フォームにアイコンピッカーUI（lucide-reactからキュレーションした一覧）・色スウォッチピッカーUI（8〜10色程度）を実装（[specs/features/categories.md](../../specs/features/categories.md#カテゴリアイコン背景色)参照）
   - 初期表示は候補の一部（8〜12個）のグリッド、「もっと見る」でDialog内その場に残りの候補を展開する（別Popover/Sheetにしない。[design/categories/create.mdの採用した方向性](../../design/categories/create.md#採用した方向性)参照）
@@ -35,7 +36,7 @@
 
 ## クリーンアップ
 
-- [ ] 1. `CategoryTable`が`categories: ReturnType<typeof useCategories>`(クエリオブジェクト丸ごと)を受け取り内部で`QueryBoundary`によるローディング/エラー処理をしている。一方`CategoriesRoute`側でも`categories.isPending`/`categories.error`を直接JSXに出しており、ローディング/エラー表示が二重になっている。本来の方針（`CategoryTable`は`categories: CategoryListItem[]`のみを受け取り、ローディング・エラーは`CategoriesRoute`側で処理）に合わせて整理する
+- [x] 1. `CategoryTable`が`categories: ReturnType<typeof useCategories>`(クエリオブジェクト丸ごと)を受け取り内部で`QueryBoundary`によるローディング/エラー処理をしている一方、`CategoriesRoute`側にも`categories.isPending`/`categories.error`を直接JSXに出す暫定コードが残っており、ローディング/エラー表示が二重になっていた（2026-08-24修正。`CategoriesRoute`側の暫定コードを削除し、`CategoryTable`側の`QueryBoundary`に一本化。あわせて「フロントエンド」節1.の方針記述も実態に合わせて更新済み）
 
 ## 将来検討（今回はスコープ外）
 

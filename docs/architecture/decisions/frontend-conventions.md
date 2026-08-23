@@ -151,7 +151,7 @@ orvalの`mutator`に独自の`customFetch`（[lib/api/custom-fetch.ts](../../../
 
 | 状態                                 | 表示                                           |
 | ------------------------------------ | ---------------------------------------------- |
-| 初回データ取得中（一覧・サマリー等） | コンテンツ部分をスケルトン表示                 |
+| 初回データ取得中（一覧・サマリー等） | コンテンツ部分をスピナー表示                   |
 | 保存・削除等の操作中                 | 操作対象のボタンをスピナー付き`disabled`状態に |
 
 **実装パターン:**
@@ -159,22 +159,51 @@ orvalの`mutator`に独自の`customFetch`（[lib/api/custom-fetch.ts](../../../
 - フォーム送信処理（変換・mutation呼び出し・ステータス分岐・リダイレクト）は `app/features/{feature名}/hooks/use{Feature}Form.ts` のようなカスタムフックに集約し、コンポーネントは表示に専念する
 - 汎用エラーの表示にはトーストではなく `Alert` を使用する（トーストは自動的に消えるため、ユーザーの対応が必要なブロッキングエラーの表示には不向き）
 
-**初回データ取得（GET）のスケルトン/エラー出し分け: `QueryBoundary`（2026-08-23決定）**
+**初回データ取得（GET）のローディング/エラー出し分け: `QueryBoundary`（2026-08-23決定、2026-08-24改訂）**
 
-「初回取得中はスケルトン」「失敗時はコンテンツ差し替え+再試行ボタン」という上記の出し分けは、一覧・サマリー系のGETエンドポイントを持つ画面（取引一覧・ダッシュボードのカテゴリ別グラフ・家族構成一覧等）で共通のため、`app/components/QueryBoundary.tsx` に切り出す。`isPending`・`error`・`onRetry`・`skeleton`（画面ごとに異なるスケルトンのJSX）・`children`（成功時に表示する内容）をpropsで受け取り、3状態（pending/error/成功）を排他的に出し分ける。
+「初回取得中はローディング表示」「失敗時はコンテンツ差し替え+再試行ボタン」という上記の出し分けは、一覧・サマリー系のGETエンドポイントを持つ画面（取引一覧・ダッシュボードのカテゴリ別グラフ・家族構成一覧等）で共通のため、`app/components/QueryBoundary.tsx` に切り出す。`isPending`・`error`・`onRetry`・`loading`（画面ごとに異なるローディング表示のJSX）・`children`（成功時に表示する内容）をpropsで受け取り、3状態（pending/error/成功）を排他的に出し分ける。
 
 ```tsx
 <QueryBoundary
   isPending={categories.isPending}
   error={categories.error}
   onRetry={() => categories.refetch()}
-  skeleton={<Skeleton className="h-14 w-full" />}
+  loading={
+    <div className="flex h-14 w-full items-center justify-center">
+      <Spinner />
+    </div>
+  }
 >
   {/* 成功時に表示する内容 */}
 </QueryBoundary>
 ```
 
-出し分けの内容自体（3状態の分岐ロジックとAlert+再試行ボタンの文言）は`QueryBoundary`内に集約し、画面側は「スケルトンの見た目」と「成功時の中身」だけを渡す。初回実装（`categories`一覧）は[categories/list.md](../../design/categories/list.md)参照。
+出し分けの内容自体（3状態の分岐ロジックとAlert+再試行ボタンの文言）は`QueryBoundary`内に集約し、画面側は「ローディングの見た目」と「成功時の中身」だけを渡す。初回実装（`categories`一覧）は[categories/list.md](../../design/categories/list.md)参照。
+
+当初はスケルトン（`Skeleton`）を採用していたが、2026-08-24にカテゴリ一覧画面での目視確認を通じてスピナー（`Spinner`）に変更した（propも`skeleton`から`loading`にリネーム）。
+
+**エラー表示の見た目（2026-08-24決定）:**
+
+```tsx
+<Alert variant="destructive" className="flex items-center justify-between gap-4">
+  <div className="flex items-center gap-3">
+    <CircleAlertIcon className="static translate-y-0" />
+    <AlertTitle>読み込みに失敗しました</AlertTitle>
+  </div>
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={onRetry}
+    className="border-destructive text-destructive hover:bg-destructive/10 bg-white font-bold"
+  >
+    再試行
+  </Button>
+</Alert>
+```
+
+- shadcn公式の`destructive`Alert例（アイコン+タイトル+説明の縦積み）に合わせてアイコン（`CircleAlertIcon`）を追加した上で、タイトルとボタンを横並びにレイアウトを変更した
+- 再試行ボタンはページの主要CTA（プライマリグリーン）と同じ強さにすると画面内のアクションの主従が曖昧になるため、`outline`ベースであえてページの主要CTAとは異なる赤系（`border-destructive`・`text-destructive`）にした
+- `bg-white`を明示指定しているのは、`outline`バリアントの既定背景色（`bg-background`）がこのアプリのページ背景色（[style-guide.md](../../design/style-guide.md)の薄いミントグリーン、`--background: #f4fbf4`）を継承してしまい、意図した白背景にならないため
 
 **懸念点:** 機能が増えるごとに同様のステータス分岐コードが各カスタムフックに重複する可能性がある。共通化（共通エラーハンドラ関数など）の必要性は実装が増えてから再検討する。
 

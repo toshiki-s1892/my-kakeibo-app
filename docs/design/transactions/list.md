@@ -117,7 +117,7 @@ Stitch Screen ID: `screens/9373a5bfe0e4460e849dca02ba9b2a0a`（タイトル「�
 | セル単位インライン編集 | 行のセル（金額等）をクリックすると入力欄に変わり、即座に`PATCH /api/transactions/:id`で該当フィールドのみ更新する軽量編集手段（[業務フロー: 取引のインライン修正（セル単位）](../../specs/features/transactions.md#業務フロー-取引のインライン修正セル単位)参照、2026-06-23決定）。[状態パターン: セル単位インライン編集](#セル単位インライン編集pc版)で生成・確定済み |
 | 一括削除確認           | 選択中バーの「一括削除」押下で表示するAlertDialog。詳細は[transactions/edit.md](./edit.md#一括削除)（本モックアップでは未生成、[業務フロー](../../specs/features/transactions.md#業務フロー-一括削除)参照）                                                                                                                                                            |
 | エラー状態             | [frontend-conventions.mdのエラーハンドリング方針](../../architecture/decisions/frontend-conventions.md#フロントエンドのエラーハンドリング方針)を参照。一覧の初回取得失敗はコンテンツ差し替え+再試行、一括削除等のフォームを伴わない操作の失敗はSonnerトースト                                                                                                          |
-| ローディング状態       | [frontend-conventions.md](../../architecture/decisions/frontend-conventions.md#フロントエンドのエラーハンドリング方針)を参照。初回取得中は一覧部分をスケルトン表示                                                                                                                                                                                                     |
+| ローディング状態       | [frontend-conventions.md](../../architecture/decisions/frontend-conventions.md#フロントエンドのエラーハンドリング方針)を参照。初回取得中は一覧部分をスピナー表示                                                                                                                                                                                                       |
 
 ## レスポンシブ差分
 
