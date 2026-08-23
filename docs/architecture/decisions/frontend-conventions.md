@@ -180,6 +180,8 @@ orvalの`mutator`に独自の`customFetch`（[lib/api/custom-fetch.ts](../../../
 
 ## app/features/ ディレクトリ構成
 
+**`app/` 配下への集約（2026-08-23決定）:** `components/`・`features/`はNext.js App Routerの[コロケーション](https://nextjs.org/docs/app/getting-started/project-structure#colocation)機能を使い、`apps/web/`直下ではなく`app/`配下に置く。App Routerは予約されたファイル名（`page.tsx`・`layout.tsx`・`route.ts`等）のみをルートとして扱うため、`app/`配下にそれ以外のディレクトリ（`components/`・`features/`）を置いてもルーティングに影響しない。`app/`の外に`components/`・`features/`を独立させると、「ルーティングのapp/」と「UIコードのcomponents・features」が別々のトップレベルディレクトリとして並び関係が見えにくくなるため、`app/`直下にまとめてアプリのUI関連コードの所在を一箇所に集約する。
+
 各機能は `app/features/{feature名}/` 配下に以下のサブディレクトリで整理する。
 
 ```

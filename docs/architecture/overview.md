@@ -49,9 +49,9 @@ apps/web/
 │   ├── (onboarding)/    ← 初回登録ページ群（プロフィール設定）
 │   ├── (app)/           ← 認証・初回登録済みページ群（家計簿機能）
 │   ├── api/[...route]/  ← Hono API エントリポイント（全ルートを集約）
-│   ├── components/
+│   ├── components/      ← 共通UIコンポーネント（[app/配下への集約理由](./decisions/frontend-conventions.md#app-features-ディレクトリ構成)）
 │   │   └── ui/          ← shadcn/ui コンポーネント
-│   ├── features/        ← 機能別コンポーネント・ロジック
+│   ├── features/        ← 機能別コンポーネント・ロジック（同上）
 │   └── providers.tsx    ← TanStack Query の QueryClientProvider
 ├── lib/
 │   └── api/
