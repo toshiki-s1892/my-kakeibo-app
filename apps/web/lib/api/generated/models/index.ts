@@ -5,6 +5,29 @@
  * OpenAPI spec version: 1.0.0
  */
 
+export * from './category';
+export * from './categoryColor';
+export * from './categoryIcon';
+export * from './categoryTypeCode';
+export * from './categoryWithChildren';
+export * from './childCategory';
+export * from './childCategoryColor';
+export * from './childCategoryIcon';
+export * from './childCategoryTypeCode';
+export * from './deleteApiCategoriesCategoryIdPin400';
+export * from './deleteApiCategoriesCategoryIdPin400DetailsItem';
+export * from './deleteApiCategoriesCategoryIdPin401';
+export * from './deleteApiCategoriesCategoryIdPin401DetailsItem';
+export * from './deleteApiCategoriesCategoryIdPin500';
+export * from './deleteApiCategoriesCategoryIdPin500DetailsItem';
+export * from './getApiCategories200';
+export * from './getApiCategories400';
+export * from './getApiCategories400DetailsItem';
+export * from './getApiCategories401';
+export * from './getApiCategories401DetailsItem';
+export * from './getApiCategories500';
+export * from './getApiCategories500DetailsItem';
+export * from './getApiCategoriesParams';
 export * from './postApiProfileSetup400';
 export * from './postApiProfileSetup400DetailsItem';
 export * from './postApiProfileSetup401';
@@ -15,3 +38,9 @@ export * from './postApiProfileSetup500';
 export * from './postApiProfileSetup500DetailsItem';
 export * from './postApiProfileSetupBody';
 export * from './postApiProfileSetupBodyGenderCode';
+export * from './putApiCategoriesCategoryIdPin400';
+export * from './putApiCategoriesCategoryIdPin400DetailsItem';
+export * from './putApiCategoriesCategoryIdPin401';
+export * from './putApiCategoriesCategoryIdPin401DetailsItem';
+export * from './putApiCategoriesCategoryIdPin500';
+export * from './putApiCategoriesCategoryIdPin500DetailsItem';
