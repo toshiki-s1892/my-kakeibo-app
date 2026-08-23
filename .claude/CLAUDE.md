@@ -12,6 +12,8 @@
 @docs/architecture/database.md
 @docs/tasks/README.md
 @docs/tasks/cross-cutting/testing-setup.md
+@docs/tasks/cross-cutting/app-layout.md
+@docs/tasks/features/categories.md
 
 ## import の運用ルール
 
@@ -27,6 +29,7 @@
 - DB スキーマの適用は `drizzle-kit migrate` を使うこと（`db:push` は適用履歴を記録せず、結合テストが再生するマイグレーションファイルと実DBの整合を保証できないため使わない。[stack.md](../docs/architecture/decisions/stack.md#マイグレーション運用drizzle-kit-generate--migrate2026-07-20にpush運用から変更)参照）
 - 外部サービス（Gemini 等）の新規接続は `server/lib/` に薄いアダプタを1箇所だけ作り、テストはそのモジュール境界を `vi.mock` で差し替えること。依存ごとに新しい差し替え機構を発明しない（[testing-strategy.md](../docs/architecture/decisions/testing-strategy.md#外部依存の差し替え方針2026-07-20決定)参照）
 - ライブラリ・フレームワークの使い方や構成を提示する際は、必ず公式ドキュメントを確認してから回答すること
+- フロントエンドのコードを提案・レビューする際は、[frontend-conventions.md](../docs/architecture/decisions/frontend-conventions.md#htmlセマンティクス2026-07-24決定)のHTMLセマンティクス規約（`main`は共通レイアウトに1箇所・ページタイトルは`h1`・画面内見出しは`h2`以降等）に沿っているか確認すること
 - 非推奨 API や破壊的変更がある可能性があるため、バージョンも考慮すること
 - ユーザーが自分で実装したいため、明示的に依頼されない限りファイルの変更・作成を行わないこと。問題の指摘や説明にとどめること
 - 会話の中でドキュメント（docs/ および本ファイル CLAUDE.md）の更新が必要と判断した場合は、その旨を一言伝えるにとどめること。実際の更新はユーザーが `/update-docs` を呼び出したタイミングで行う。`/update-docs` はCLAUDE.md自体（作業ルール・スタイルガイド等）の更新も対象に含む
