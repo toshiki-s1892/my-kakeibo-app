@@ -3,11 +3,12 @@ import { Button } from './ui/button';
 
 type AddButtonProps = {
   className?: string;
+  onClick?: () => void;
 };
 
-export const AddButton = ({ className }: AddButtonProps) => {
+export const AddButton = ({ className, onClick }: AddButtonProps) => {
   return (
-    <Button className={className}>
+    <Button className={className} onClick={onClick}>
       <AddIcon />
       新しいカテゴリを追加
     </Button>
