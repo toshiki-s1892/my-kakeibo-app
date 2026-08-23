@@ -36,6 +36,10 @@
 
 **懸念点:** Next.js 16 + React 19 は最新バージョンのため、エコシステムの一部ライブラリが未対応の可能性がある。ライブラリ追加時は都度確認が必要。
 
+**2026-07-25発見: `next.config.ts`の`webpack()`オプションはTurbopackでは無視される** — Next.js 16はデフォルトでTurbopackを使うため、SVGR等のwebpackローダーを追加する目的で`webpack()`関数を書いても適用されず、むしろ`⨯ ERROR: This build is using Turbopack, with a webpack config and no turbopack config.`でビルドエラーになる。同等の設定はTurbopack専用の`turbopack.rules`で行う必要がある（具体例は[frontend-conventions.mdのアイコン](./frontend-conventions.md#アイコン)参照）。
+
+**2026-07-23対応: `16.2.0`→`16.2.11`へパッチ更新（Turbopackのメモリリーク対策）** — `next dev`（Turbopack）が長時間の開発セッションでヒープ使用量が無制限に増加し、`FATAL ERROR: ... JavaScript heap out of memory`でクラッシュする事象が発生した。Turbopackの既知の問題（[vercel/next.js#66326](https://github.com/vercel/next.js/issues/66326)・[#73921](https://github.com/vercel/next.js/issues/73921)・[#81161](https://github.com/vercel/next.js/issues/81161)）で、変更のないファイルを再コンパイルしないためのキャッシュがメモリ上で無制限に膨張する設計上のトレードオフが原因。根本対策となるメモリeviction機能（メモリ使用量最大90%削減）は[Next.js 16.3](https://nextjs.org/blog/next-16-3-turbopack)で追加されるが、2026-07-23時点で16.3は`preview`段階（`16.3.0-preview.8`）で安定版未リリースのため採用を見送り、16.2系の最新パッチ（`16.2.11`）へ更新するに留めた。16.3安定版のリリース後、改めてアップグレードを検討する。
+
 ---
 
 ## 認証: Clerk
@@ -108,7 +112,7 @@ DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts
 **影響範囲:**
 
 - `packages/db/src/schema/*.ts` の全テーブルのPK定義変更（マイグレーション必要）
-- `server/shared/id-schema.ts` の `IdParamSchema`・`IdResponseSchema` を `z.coerce.number()` から UUID文字列のバリデーションに変更
+- 各機能の`:id`パスパラメータ検証スキーマ（[api-conventions.mdの命名規則](./api-conventions.md#honoルートの実装方針)により機能ごとに個別定義。例: `categoryIdRequestSchema`）を `z.coerce.number()` から UUID文字列のバリデーションに変更
 - 既存実装（プロフィール設定機能）への影響を実装時に確認する
 
 ---

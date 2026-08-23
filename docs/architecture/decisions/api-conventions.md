@@ -6,22 +6,80 @@ Hono + Zod OpenAPIを採用した理由は[stack.md](./stack.md#api-hono--zod-op
 
 - アプリの初期化は `OpenAPIHono` を使用（`Hono` の代わり）
 - ルート定義は `createRoute` で行い、リクエスト・レスポンスのスキーマを明示する
-- 各機能のルートは `server/routes/{feature名}/` ディレクトリに以下の3ファイルで分離する
+- 各機能のルートは `server/routes/{feature名}/` ディレクトリに以下の3種類のファイルで分離する
   - `schema.ts`: Zodスキーマ・OpenAPI定義（`createRoute`）
   - `handler.ts`: DBアクセスなどの処理
   - `index.ts`: `OpenAPIHono` インスタンスにルートを登録してexport
+  - 1機能に複数エンドポイントがある場合のファイル分割は[下記](#複数エンドポイントを持つ機能のファイル分割2026-08-22決定)を参照
 - メインの `app/api/[...route]/route.ts` で各ルートを `.route()` でマウントすると OpenAPI スペックに自動集約される
 - Clerk認証は `@clerk/hono` の `clerkMiddleware()` を使用する（`@hono/clerk-auth` は非推奨）
 - `app.use('/profile/*', clerkMiddleware())` のようにルートごとにミドルウェアを適用する
 - Swagger UI は `/api/ui`、OpenAPI スペックは `/api/doc` で公開する（認証不要）
 - 各ハンドラ内では `getAuth(c)` で userId を取得する（`@clerk/hono` からimport）
 - Next.jsミドルウェア（`proxy.ts`）でページルーティングレベルの認証を行い、Honoミドルウェアでは `getAuth(c)` のコンテキストセットアップを担当する
-- エラーレスポンスは全ルートで共通スキーマ（`ErrorResponseSchema`）を使用する（詳細は[エラーレスポンス](#エラーレスポンス)参照）
+- エラーレスポンスは全ルートで共通スキーマ（`errorResponseSchema`）を使用する（詳細は[エラーレスポンス](#エラーレスポンス)参照）
+- **状態を変更する操作にGETを使わない**（一覧・詳細取得のみGET、作成・更新・削除・ピン留め等はPOST/PUT/DELETE）。Clerkのセッションcookieが`SameSite=Lax`であるためのCSRF対策として機能する（[security.mdのCSRF対策](./security.md#csrf対策2026-08-23決定確認事項)参照）。この規約を崩すと追加のCSRF対策が必要になる
 - 共有スキーマ（複数ルートで使うもの）は `server/shared/` に配置する
-  - `error.ts`: `ErrorResponseSchema`
-  - `id-schema.ts`: `IdParamSchema`（パスパラメータ用）・`IdResponseSchema`（ID返却レスポンス用）
-- パスパラメータの `:id` はUUID文字列のため変換不要（[ID設計: UUID](./stack.md#id設計-uuid全テーブル共通)参照）
+  - `error.ts`: `errorResponseSchema`
+- パスパラメータの `:id` はUUID文字列のため変換不要（[ID設計: UUID](./stack.md#id設計-uuid全テーブル共通)参照）。検証スキーマは機能横断の共有ファイルを持たず、各機能の`request/`配下に`{リソース名}IdRequestSchema`として個別定義する（例: `categoryIdRequestSchema`）。パスパラメータ名（`:categoryId`等）がどのリソースのIDか読み手に伝わるようにするため、`server/shared/`の汎用`id-schema.ts`（`:id`固定）は廃止した
 - DBスキーマは `@repo/db/schema` サブパスからimportする（DBクライアント本体は次項の`server/lib/db.ts`から）
+
+### 複数エンドポイントを持つ機能のファイル分割（2026-08-22決定）
+
+1機能1エンドポイントのみの場合は、これまで通りフラットな `schema.ts`・`handler.ts` のままでよい（無理に分割しない）。`categories` のように1機能に複数エンドポイント（一覧・作成・編集・削除・ピン留め等）が並ぶ場合、`schema.ts` が1ルートあたり50〜90行（`examples` を含むため）に達し、1ファイルに集約すると肥大化する。この場合は `schema`・`handler`・`request`・`response` をそれぞれサブディレクトリ化し、エンドポイント単位でファイルを分割する。
+
+```
+server/routes/categories/
+  schema/categoryListSchema.ts
+  handler/categoryListHandler.ts
+  request/categoryListRequest.ts
+  response/categoryListResponse.ts
+  response/category.ts   ← 複数エンドポイントで共有するドメインスキーマ
+  index.ts
+```
+
+- ファイル名は `{リソース名}{操作}{役割}.ts`（例: `categoryListSchema.ts`）とする。ディレクトリ（`schema/`・`handler/`）だけで役割を表すと、`schema/list.ts` と `handler/list.ts` のように別ディレクトリに同名ファイルが並び、エディタのタブや `Cmd+P` 検索で見分けづらくなるため、ファイル名単体でも自己説明的になるようにする
+- この命名は [Cloudflare公式 `chanfana`（Hono/itty-router向けOpenAPIライブラリ）のテンプレート](https://github.com/cloudflare/chanfana/tree/main/template/src/endpoints)を参考にした。同テンプレートは `taskList.ts`・`taskCreate.ts`・`taskUpdate.ts` のように、ディレクトリを分けず「リソース名+操作」のファイル名だけで1エンドポイント1ファイルを表現している
+- 複数エンドポイントにまたがって再利用する共有ドメインスキーマ（例: `categorySchema`・`childCategorySchema`）は、操作名を持たない専用ファイル（例: `response/category.ts`）に分離する。個別エンドポイント専用のレスポンススキーマ（例: `categoryListResponseSchema`）とは別ファイルに保ち、名前と中身の不一致を防ぐ
+- `index.ts` は各 `schema/`・`handler/` から集約importしてルーティング登録する点は変わらない
+
+### Zodスキーマexportの命名規則（2026-08-22決定）
+
+Zodスキーマを代入するexport変数は**camelCase**とする（例: `categorySchema`・`errorResponseSchema`・`categoryListResponseSchema`）。
+
+- TypeScriptの一般的な慣習（型はPascalCase、値・インスタンスはcamelCase）に沿う。Zodスキーマは実行時に評価される値であり、型そのものではないため
+- このコードベースのスキーマexportは必ず`Schema`という接尾辞を持つ（`categorySchema`等）。Reactコンポーネント（PascalCase・接尾辞なし）と名前が衝突する余地はないため、大文字始まりにして区別する必要もない
+- 対応する型（`z.infer<typeof xxxSchema>`）が別途必要になった場合のみ、その時点でPascalCaseの型エイリアスを切る（例: `type Category = z.infer<typeof categorySchema>`）。2026-08-22時点では`server/`配下で`z.infer`を使っている箇所はなく、未使用の型エイリアスを先回りして作らない
+- `.openapi('Xxx')`で付けるOpenAPIコンポーネント名（文字列）はこれとは別物で、[下記のレスポンススキーマの命名方針](#レスポンススキーマの命名方針2026-08-11決定)に従いPascalCaseのまま変更しない（生成されるOpenAPIスペック上の表示名のため）
+
+参考: Zod公式ドキュメント（[zod.dev](https://zod.dev/)）は現行スタイルとしてPascalCase（スキーマと推論型を同名にする書き方）を採用しているが、Zod作者自身のDiscussion（[colinhacks/zod #929](https://github.com/colinhacks/zod/discussions/929)）では「TSの一般的な命名慣習に従うならcamelCaseの方が理屈が通る」という意見も出ており、コミュニティで統一された正解はない。このプロジェクトでは上記の理由（値/型の区別・`Schema`接尾辞による衝突回避）からcamelCaseを選んだ。
+
+### レスポンススキーマの命名方針（2026-08-11決定）
+
+`.openapi('Xxx')` で付けるスキーマ名は、そのスキーマが**どのエンドポイントで使われるか**ではなく**ドメイン上何を表すか**で命名する。1つのスキーマ形状が複数エンドポイントで再利用される可能性がある場合（例: `CategoryWithChildren` は一覧取得だけでなく、単一カテゴリ取得・作成・更新のレスポンスでも同じ形状を返す想定）、`CategoryListItem` のようなエンドポイント用途に寄せた名前にしない。
+
+フロントエンド側で画面の用途に合わせた読みやすい名前が欲しい場合は、バックエンドのスキーマ名は変えず、生成された型を利用側コンポーネントでローカルにエイリアスする（[frontend-conventions.mdのコンポーネントpropsの型](./frontend-conventions.md#コンポーネントpropsの型2026-08-11決定)参照）。
+
+### 一覧取得エンドポイントのレスポンス形状（2026-08-12決定）
+
+トップレベルが配列になる一覧取得エンドポイント（`GET /api/categories`・`GET /api/transactions`等）は、レスポンスをドメイン名キーのオブジェクトでラップする（例: `{ categories: [...] }`）。単一リソースを返すエンドポイント（`:id`付きの単体取得・作成・更新・削除、`void`を返すエンドポイント）は対象外で、これまで通り配列でラップせずそのまま返す。
+
+理由: 将来的にページネーション・総件数等のメタ情報を破壊的変更なしに追加できるようにするため（取引一覧は[design docs](../../design/transactions/list.md)で件数表示・ページネーションが既に計画されている）。カテゴリ一覧自体には現時点でその予定はないが、エンドポイントごとに配列かオブジェクトかを個別判断するコストをなくすため、一覧系エンドポイント全体で統一ルールとする。orvalの`forceSuccessResponse`バグ（[frontend-conventions.mdのorval運用方針](./frontend-conventions.md#データフェッチ-tanstack-query--orval)参照）の回避にもなるが、それとは独立した設計判断として決定した。
+
+この方針は権威あるAPI設計ガイドラインとも一致する。[Google AIP-132](https://google.aip.dev/132)は「The response message must include one repeated field corresponding to the resources being returned」とし、`repeated Book books = 1;`のようにリソース名の複数形をフィールド名にする例を示している（今回の`categories`という命名はこのパターンに倣う）。[Microsoft Azure REST API Guidelines](https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md)も「DO structure the response to a list operation as an object with a top-level array field containing the set (or subset) of resources」と明記するが、キー名は`value`のような汎用名を既定として推奨しており（「YOU SHOULD use `value` as the name of the top-level array field unless a more appropriate name is available」）、ドメイン名か汎用名かはガイドライン間でも流儀が分かれる。このプロジェクトは[レスポンススキーマの命名方針](#レスポンススキーマの命名方針2026-08-11決定)でドメイン意味による命名を既に採用しているため、一貫性を優先してドメイン名キー（Google流）を選んだ。
+
+## リクエストボディサイズの上限（2026-08-23決定）
+
+Vercelはプラットフォーム側で全リクエストボディを4.5MBに強制上限しており（超過分は自動的に413エラー。[Vercel公式のFunctions Limits](https://vercel.com/docs/functions/limitations)）、無制限アップロードによるDoSはそもそも起こり得ない。その上で、JSON系エンドポイント（`categories`・`transactions`等、レシート画像アップロードを除く全て）はアプリ側でさらに小さい上限（例: 100KB）をHonoの`bodyLimit`ミドルウェアで明示する。数KBで十分なはずのリクエストに対して4.5MBまで許容してしまうと、Zodのパース前に無駄に大きなペイロードを受け取ってしまうため。
+
+## APIのレート制限（2026-08-23決定）
+
+[OWASP API Security Top 10 (API4:2023 Unrestricted Resource Consumption)](https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/)に基づき、エンドポイントの性質ごとに層を分ける。
+
+- **認証済みエンドポイント全体**: ユーザー単位（`auth.userId`）で緩めの上限を設ける。IP単位にしない理由は、同一IPを複数ユーザーが共有するケース（オフィスWi-Fi等）を誤って巻き込まないため、また1ユーザーがIPを変えても制限を回避できないようにするため
+- **AIエンドポイント（レシート読み取り・アドバイス）**: 既存の日次上限（`ai_usage_logs`、[ai.md](../../specs/features/ai.md)）とは別に、ユーザー単位の短時間バースト制限を追加で重ねる（日次上限に達する前の連打でコスト・レイテンシが跳ねるのを防ぐため）
+- **Webhookエンドポイント（Clerkの`user.deleted`等）**: 未認証で受けるため、レート制限より署名検証（本命の防御）を優先する
+- 実装は[本アプリのAPI（`app/api/[...route]/route.ts`）が`export const runtime = 'edge'`のため](../overview.md)、サーバーレス関数をまたいだカウントが必要。Upstash Redis + `hono-rate-limiter`を使用し、`server/lib/rate-limit.ts`に薄いアダプタとして実装する（将来AWS等へ移行してもUpstashはREST APIのため接続先を変えずに使い続けられる）
 
 ## DBクライアントの分離
 
@@ -39,7 +97,7 @@ apps/web/server/lib/db.ts ← Next.js用のDBクライアント（process.envを
 全ルートで以下の共通スキーマを使用する。
 
 ```ts
-const ErrorResponseSchema = z.object({
+const errorResponseSchema = z.object({
   message: z.string(),
   details: z
     .array(
@@ -56,16 +114,17 @@ const ErrorResponseSchema = z.object({
 
 ユーザー向けの固定文言（`message`に入れる値）は `packages/common/src/error-message.ts` に定数として集約する（`unexpectedErrorMessage`・`validationErrorMessage` など）。`HTTPException`を意図的に`throw`する箇所のメッセージ（`error.message`）はこの集約の対象外で、各呼び出し元が文脈に応じて指定する。
 
-| HTTPステータス | 用途                                                         |
-| -------------- | ------------------------------------------------------------ |
-| 400            | 不正なリクエスト・フォームバリデーションエラー               |
-| 422            | 形式は正しいが処理できない（AIがレシートを読み取れないなど） |
-| 503            | 外部サービス障害（Gemini APIダウンなど）                     |
-| 500            | 予期しないサーバーエラー                                     |
+| HTTPステータス | 用途                                                                   |
+| -------------- | ---------------------------------------------------------------------- |
+| 400            | 不正なリクエスト・フォームバリデーションエラー                         |
+| 409            | 業務上のコンフリクト（重複登録・名前重複等。DBのUNIQUE制約違反に対応） |
+| 422            | 形式は正しいが処理できない（AIがレシートを読み取れないなど）           |
+| 503            | 外部サービス障害（Gemini APIダウンなど）                               |
+| 500            | 予期しないサーバーエラー                                               |
 
 ### エラーレスポンスの形式統一: defaultHookでthrow + onErrorで一元整形
 
-`@hono/zod-openapi` は `defaultHook` を指定しない場合、`createRoute` の `request.body` スキーマでのバリデーション失敗時に `{ success: false, error: <ZodError> }`（status 400）を返す。また `app.onError` を設定していない場合、ハンドラ内の未処理例外（`throw new Error(...)` 等）は Hono のデフォルト挙動でプレーンテキスト `"Internal Server Error"`（status 500）になる。いずれも上記の `ErrorResponseSchema` と形式が一致しない。
+`@hono/zod-openapi` は `defaultHook` を指定しない場合、`createRoute` の `request.body` スキーマでのバリデーション失敗時に `{ success: false, error: <ZodError> }`（status 400）を返す。また `app.onError` を設定していない場合、ハンドラ内の未処理例外（`throw new Error(...)` 等）は Hono のデフォルト挙動でプレーンテキスト `"Internal Server Error"`（status 500）になる。いずれも上記の `errorResponseSchema` と形式が一致しない。
 
 これらを統一フォーマットに揃えるため、**`defaultHook` では `HTTPException` を `throw` するだけにし、実際の整形は `app.onError` に一元化する**方式を採用する。
 
@@ -96,7 +155,7 @@ flowchart TD
     }
   };
   ```
-- `server/shared/error-handler.ts` に `errorHandler` を定義する。`app.onError` に渡し、`HTTPException` の `cause` が `ZodError` かどうかで判定して `ErrorResponseSchema` に整形する
+- `server/shared/error-handler.ts` に `errorHandler` を定義する。`app.onError` に渡し、`HTTPException` の `cause` が `ZodError` かどうかで判定して `errorResponseSchema` に整形する
   ```ts
   export const errorHandler = (error: Error, c: Context) => {
     if (error instanceof HTTPException && error.cause instanceof ZodError) {
@@ -127,6 +186,29 @@ flowchart TD
 - `onError` は `.route()` によるルート統合の仕組み上、サブルーター側で個別に `onError` を設定していない限りそのまま親のルーティングテーブルに統合されるため、**`app/api/[...route]/route.ts` の `app` に `app.onError(errorHandler)` を1箇所設定するだけで、マウントされた全サブルーターのエラーもキャッチできる**（サブルーター側に重複設定は不要）
 
 なお、ステータスコードは [REST的には `422 Unprocessable Entity` がより正確という議論があるが](https://github.com/w3cj/stoker)、既存の `schema.ts`・フロントエンドの分岐コードとの整合性を優先し、**400のまま**とした。
+
+### DB制約違反の409マッピング（2026-07-20決定、profile-setupが最初の適用例）
+
+DBのUNIQUE制約違反（例: `users.clerk_id`の重複登録）は、想定外の例外（500）ではなく、業務上のコンフリクト（409）として`HTTPException`で意図的に`throw`し直す。
+
+```ts
+let user: { id: string } | undefined;
+try {
+  [user] = await tx.insert(usersTable).values({ clerk_id: userId!, ... }).returning({ id: usersTable.id });
+} catch (error) {
+  const isDuplicateUserError =
+    error instanceof DrizzleQueryError &&
+    error.cause instanceof LibsqlError &&
+    error.cause.code === 'SQLITE_CONSTRAINT';
+
+  if (isDuplicateUserError) {
+    throw new HTTPException(HTTP_STATUS.CONFLICT, { message: alreadySetupMessage });
+  }
+  throw error;
+}
+```
+
+**判定は「該当INSERT文だけを個別にtry/catchで囲む」ことで構造的に絞り込む（メッセージ文字列のパースはしない）:** SQLite/libsqlのエラーは、PostgreSQLの`error.constraint`のような構造化された制約名を持たず、`error.cause.code === 'SQLITE_CONSTRAINT'`だけでは「どのINSERT文の、どの制約か」を区別できない。トランザクション内の全INSERTを1つの`try/catch`で囲むと、無関係なテーブル（例: `categories`のデータ不整合という別のバグ）の制約違反まで「重複登録」という誤ったメッセージ・ステータスに丸め込んでしまい、かつ409は`errorHandler`の想定外分岐（③）を通らないため`console.error`にも記録されず、不具合に気づきにくくなる。エラーメッセージの文字列マッチ（`error.cause.message`に`users.clerk_id`が含まれるか等）も代替案としてあるが、SQLiteコミュニティの一般的な見解として「エラーメッセージのパースに頼るべきではない」（バージョン・ロケールで変わりうるため）とされており不採用。「対象のINSERT文だけをtry/catchで囲む」方式であれば、メッセージ内容に関わらず、どのテーブルの制約違反かをコードの構造そのもので保証できる。
 
 ### エラーログ
 

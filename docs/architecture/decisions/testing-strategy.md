@@ -19,13 +19,13 @@
 
 **テストの粒度:**
 
-| 層                                     | 対象                                                                                         | DB                                        |
-| -------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| 単体（Vitest, node環境）               | `packages/common`の純粋ロジック（メッセージ生成関数等）                                      | 使わない                                  |
-| 単体（Vitest, node環境）               | `features/*/schema/*FormSchema.ts`等のzodスキーマ（バリデーション分岐）                      | 使わない                                  |
-| 単体（Vitest, jsdom環境）              | `features/*/hooks/use{Feature}Form.ts`等のフックロジック（ステータス分岐・リダイレクト判断） | 使わない（orval mock + MSWでAPIをモック） |
-| 結合（Vitest + Honoの`app.request()`） | `server/routes/{feature名}/handler.ts`（APIエンドポイント単位）                              | 使う（ローカルSQLite）                    |
-| E2E（Playwright）                      | 複数画面をまたぐ主要フロー                                                                   | 使う（ローカルSQLite）                    |
+| 層                                     | 対象                                                                                             | DB                                        |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| 単体（Vitest, node環境）               | `packages/common`の純粋ロジック（メッセージ生成関数等）                                          | 使わない                                  |
+| 単体（Vitest, node環境）               | `app/features/*/schema/*FormSchema.ts`等のzodスキーマ（バリデーション分岐）                      | 使わない                                  |
+| 単体（Vitest, jsdom環境）              | `app/features/*/hooks/use{Feature}Form.ts`等のフックロジック（ステータス分岐・リダイレクト判断） | 使わない（orval mock + MSWでAPIをモック） |
+| 結合（Vitest + Honoの`app.request()`） | `server/routes/{feature名}/handler.ts`（APIエンドポイント単位）                                  | 使う（ローカルSQLite）                    |
+| E2E（Playwright）                      | 複数画面をまたぐ主要フロー                                                                       | 使う（ローカルSQLite）                    |
 
 E2Eは最初から全分岐を網羅せず、正常系（ゴールデンパス）1本（例: サインイン→プロフィールセットアップ→ダッシュボード遷移）から開始する。異常系・バリデーションエラーなどの分岐は単体テストでカバーする。
 
@@ -65,6 +65,8 @@ E2Eの対象外（単体・結合テストで担保）: カテゴリ追加/編�
 | `server`（結合）               | APIエンドポイント単位の入出力（リクエスト→DB→レスポンス、ステータスコード）                                                                | フロント側のフォームの挙動                                    |
 | `e2e`                          | 画面をまたいだ遷移・結合動作（正常系1本から開始）                                                                                          | 各層の異常系の網羅（単体テストで担保済み）                    |
 
+**IDORの再発防止テストを必須化する（2026-08-23決定）:** `:id`パスパラメータを持つ全エンドポイント（GET/PUT/DELETE）の`server`層テストに、「別ユーザーが所有するリソースのidを指定すると403または404になる」ケースを1件以上含める。[security.mdのIDOR対策](./security.md#idor不正な直接オブジェクト参照対策)は所有者チェックの実装方針であり、この規約はその実装漏れをテストで機械的に検出するためのもの。
+
 **`schema`層はメッセージの「選択」まで検証する（2026-07-13決定、当初の「期待値をメッセージ生成関数で作るのは自明な検証なので書かない」という規定を置き換え）:**
 
 - 期待値は`common`の定数・関数への**参照**で書く（`expect(issue.message).toBe(requiredMessage)`・`toBe(maxLengthMessage(50))`）。これは文言の正しさの検証ではなく（それは`common`のテストがハードコード文字列で担保済み）、「どのフィールドに・どの条件で・どのメッセージ関数をどの引数で配線したか」という**選択の検証**であり、`minLengthMessage(1)`への配線ミスや引数の書き間違いを捕まえられる。`common`＝文言、`schema`＝フィールド・条件・メッセージ選択、という分担で重複なく契約全体をカバーする
@@ -88,18 +90,18 @@ E2Eの対象外（単体・結合テストで担保）: カテゴリ追加/編�
 
 上記の通り環境（node/jsdom）・前処理（Clerkモック・SQLite migrate・MSWセットアップ）が層ごとに異なるため、`apps/web/vitest.config.ts`内でVitestの`projects`機能（モノレポ・複数環境向けの標準構成）を使い、`server`・`hooks`・`schema`の3プロジェクトに分割する。1つの`vitest.config.ts`に環境分岐ロジックを埋め込む方法は取らない。`packages/common`は別パッケージのため、この`projects`には含めず独立した`vitest.config.ts`を持つ。
 
-| project  | environment | 用途・setupFiles                                              |
-| -------- | ----------- | ------------------------------------------------------------- |
-| `server` | `node`      | `server/routes`の結合テスト（Clerkモック・SQLite migrate）    |
-| `hooks`  | `jsdom`     | `features/*/hooks/`のフックテスト（MSWの`server.listen()`等） |
-| `schema` | `node`      | `features/*/schema/`のバリデーション分岐テスト（DOM不要）     |
+| project  | environment | 用途・setupFiles                                                  |
+| -------- | ----------- | ----------------------------------------------------------------- |
+| `server` | `node`      | `server/routes`の結合テスト（Clerkモック・SQLite migrate）        |
+| `hooks`  | `jsdom`     | `app/features/*/hooks/`のフックテスト（MSWの`server.listen()`等） |
+| `schema` | `node`      | `app/features/*/schema/`のバリデーション分岐テスト（DOM不要）     |
 
 **テストファイルの配置規約（`__tests__`サブディレクトリ）:**
 
 テストファイルは対象ファイルと同じディレクトリ直下に`__tests__/`を作り、その中に置く（feature直下に1つの`__tests__`へ集約する方式は不採用）。
 
 ```
-features/profile-setup/
+app/features/profile-setup/
 ├── hooks/
 │   ├── useProfileSetupForm.ts
 │   └── __tests__/useProfileSetupForm.test.ts
@@ -112,7 +114,7 @@ packages/common/src/
 └── __tests__/error-message.test.ts
 ```
 
-サブディレクトリごとに分ける理由は、`projects`の`include`をディレクトリ単位（`features/*/hooks/__tests__/*.test.ts`等）で機械的に指定できるため。feature直下にまとめる方式だと、`hooks`用・`schema`用のテストを`include`で振り分ける際にファイル名の命名規則（`use*.test.ts`か`*FormSchema.test.ts`か）に依存することになり、命名を誤ると意図しないprojectに紛れ込むリスクがある。
+サブディレクトリごとに分ける理由は、`projects`の`include`をディレクトリ単位（`app/features/*/hooks/__tests__/*.test.ts`等）で機械的に指定できるため。feature直下にまとめる方式だと、`hooks`用・`schema`用のテストを`include`で振り分ける際にファイル名の命名規則（`use*.test.ts`か`*FormSchema.test.ts`か）に依存することになり、命名を誤ると意図しないprojectに紛れ込むリスクがある。
 
 **テストの記述規約（2026-07-12決定、`packages/common/src/__tests__/error-message.test.ts`が最初の適用例）:**
 
@@ -124,7 +126,7 @@ packages/common/src/
   - 型解決のため各パッケージのtsconfigに`vitest/globals`を追加する（`packages/common`は`"types": ["bun", "vitest/globals"]`、`apps/web`は`types`未指定だと全`@types/*`自動読込のため`"types": ["node", "vitest/globals"]`と`node`の併記が必要な点に注意）
 - テスト名はその層の責務に合わせる。例えば`common`のメッセージ生成関数のテストは関数の入出力の契約（「渡した◯◯を含むメッセージを返す」）を書き、「入力時に表示されるメッセージ」のような呼び出し側（スキーマ・フォーム）の責務は書かない（その振る舞いは`schema`層のテスト名に書く）
 
-**schema層テストの記述パターン（2026-07-13決定、`features/profile-setup/schema/__tests__/profileSetupFormSchema.test.ts`が最初の適用例）:**
+**schema層テストの記述パターン（2026-07-13決定、`app/features/profile-setup/schema/__tests__/profileSetupFormSchema.test.ts`が最初の適用例）:**
 
 - ネストする`describe`は**フィールド単位**（`describe('name', ...)`のようにコード上の識別子を英語のまま）で切る。「正常系/準正常系/異常系」のようなラベルは使わない（「〜なら〜になる」形式のテスト名が既に条件と結果を表しており、分類ラベルは情報を足さないため）
 - **`validValues`パターン**: 全フィールドがバリデーションを通る基準値オブジェクトを1つ定義し、各テストで`{ ...validValues, name: '' }`のように**1フィールドだけ上書き**する（エラーが常に1件になり、どのフィールドの検証か明確になる）。基準値はスキーマの材料定数（`GENDER_OPTIONS`等）から導出せず**リテラル**で書く（定数から作ると検証が自己参照になり、定数の破壊的変更に気づけない。`'MALE'`等の値は外部契約なのでテストが固定する価値がある）
@@ -134,7 +136,7 @@ packages/common/src/
 - テスト名は入力事実に合わせて狭く書く（50文字ちょうどを入力するテストを「50文字**以内**なら」と書かない。範囲を主張すると試していないケースまで検証済みに読めるため）
 - 境界テストで範囲の両端を押さえたら、中間の代表値テストは置かない（新しい情報を足さないため）
 
-**hooks層テストの記述パターン（2026-07-19決定、`features/profile-setup/hooks/__tests__/useProfileSetupForm.test.tsx`が最初の適用例）:**
+**hooks層テストの記述パターン（2026-07-19決定、`app/features/profile-setup/hooks/__tests__/useProfileSetupForm.test.tsx`が最初の適用例）:**
 
 - **describeグループ化**: 外側の`describe`はフック名（英語識別子、記述規約どおり）。その内側に`describe('正常系')`・`describe('異常系')`の**日本語分類ラベル**を置いてテストをグループ化する。schema層の「ラベル不使用」規定との違いは切り口の有無: schema層はフィールド単位という自然な切り口があるが、hooks層はAPIレスポンスのシナリオが並列に並ぶため、分類ラベルが「どれが正常系か」の迷いを解消する情報になる。グループ用describeには**ラベル以外を持たせない**（`beforeEach`・共有変数を置かない。ネスト批判（Kent C. Dodds "[Avoid Nesting When You're Testing](https://kentcdodds.com/blog/avoid-nesting-when-youre-testing)"）の主眼はスコープ追跡の困難さであり、ラベル専用なら該当しない）
 - **並び順**: 正常系 → 異常系（実装の分岐順に合わせる: 400 → その他ステータス → `onError`）→ ガード（そもそも送信されないケース）。テスト間の独立性（`resetHandlers`・`clearMocks`）が前提のため、並び順は純粋に読み手のための編集
@@ -181,7 +183,7 @@ export default defineConfig({
         test: {
           name: 'hooks',
           environment: 'jsdom',
-          include: ['features/*/hooks/__tests__/*.test.{ts,tsx}'],
+          include: ['app/features/*/hooks/__tests__/*.test.{ts,tsx}'],
           setupFiles: ['./vitest.setup.hooks.ts'], // MSWの起動・停止（下記「フックテストのMSWモック方針」参照）
         },
       },
@@ -190,7 +192,7 @@ export default defineConfig({
         test: {
           name: 'schema',
           environment: 'node',
-          include: ['features/*/schema/__tests__/*.test.{ts,tsx}'],
+          include: ['app/features/*/schema/__tests__/*.test.{ts,tsx}'],
         },
       },
     ],
@@ -211,12 +213,53 @@ orvalの`mock: true`設定により`lib/api/generated/{feature}/{feature}.msw.ts
 - 成功パス（2xx）: orval生成の`get{Feature}Mock()`をグローバルセットアップで登録し、そのまま使う
 - 異常系（400/401/500等）: orval生成コードでは表現できないため、テストごとに`server.use(http.post('*/api/xxx', () => HttpResponse.json({...}, { status: 400 })))`のように生のMSWハンドラを個別に書く。テスト数が少ない段階では共通化せず、各テストファイルに直接記述する（重複が3件以上になった時点で共通化を検討する）
 
-**MSWセットアップのファイル構成（2026-07-18実装）:**
+**MSWセットアップのファイル構成（2026-07-18実装、2026-08-01改訂）:**
 
-役割の変わる理由が異なるため2ファイルに分離する。
+役割の変わる理由が異なるため、セットアップ（vitest.setup.hooks.ts）とハンドラー定義（mocks/）を分離する。
 
-- `apps/web/mocks/handlers.ts`: 全featureのorval生成ハンドラを集約する（`export const handlers = [...getProfileMock()]`）。feature追加時はこの配列に足すだけで、セットアップファイルは触らない。ディレクトリ名はMSW公式の`mocks/`慣例に従う（テスト専用ではなく、将来コンポーネントカタログのブラウザ側`setupWorker`からも同じ`handlers`を再利用できる配置）
+- `apps/web/mocks/handlers/index.ts`: 各featureのハンドラーを集約する（`export const handlers = [...getProfileMock(), categoriesHandler]`）。feature追加時はこの配列に足すだけで、セットアップファイルは触らない。ディレクトリ名はMSW公式の`mocks/`慣例に従う（テスト専用ではなく、将来コンポーネントカタログのブラウザ側`setupWorker`からも同じ`handlers`を再利用できる配置）
+- `apps/web/mocks/handlers/{feature}.ts`: そのfeatureのモックに独自ロジックが必要な場合だけ作成する（例: `categories.ts`）。デフォルトの自動生成モック（`getXxxMock()`）をそのまま使うだけのfeatureは個別ファイルを作らず、`index.ts`から直接orval生成の`get{Feature}Mock()`を呼ぶ。MSW公式の[Structuring handlers](https://mswjs.io/docs/best-practices/structuring-handlers)が推奨する「まず単一ファイル、複雑になったfeatureだけドメイン別ファイルに分割する」段階的方針に従う
 - `apps/web/vitest.setup.hooks.ts`: `setupServer(...handlers)`とライフサイクル管理（`beforeAll`で`listen`・`afterEach`で`resetHandlers`・`afterAll`で`close`）のみを持つ。`server`をexportし、異常系テストの`server.use()`による一時上書きに使う（`afterEach`の`resetHandlers`が上書きを毎回デフォルトに戻し、テスト間の独立性を保つ）
+
+**クエリパラメータに応じた動的モックの書き方（2026-08-01実装、categoriesが最初の適用例）:**
+
+orval生成の`get{Operation}MockHandler`は`overrideResponse`に関数を渡すと、リクエスト情報を受け取って動的にレスポンスを組み立てられる（`Category[]`のような値だけでなく、`(info) => Category[]`という関数も型として許容されている）。クエリパラメータは`new URL(info.request.url).searchParams`で読み取る（[MSW公式のQuery parameters](https://mswjs.io/docs/http/intercepting-requests/query-parameters)と同じ書き方）。
+
+```ts
+export const categoriesHandler = getGetApiCategoriesMockHandler((info) => {
+  const url = new URL(info.request.url);
+  const typeCode =
+    Number(url.searchParams.get('typeCode')) === CATEGORY_TYPE.INCOME
+      ? CATEGORY_TYPE.INCOME
+      : CATEGORY_TYPE.EXPENSE;
+
+  const withConsistentTypeCode = (
+    data: ReturnType<typeof getGetApiCategoriesResponseMock>[number]
+  ) => ({
+    ...data,
+    typeCode,
+    parentId: null,
+    children: data.children.map((child) => ({ ...child, typeCode, parentId: data.id })),
+  });
+
+  const categories = getGetApiCategoriesResponseMock().map(withConsistentTypeCode);
+  while (categories.length < MIN_SAMPLE_CATEGORIES) {
+    categories.push(...getGetApiCategoriesResponseMock().map(withConsistentTypeCode));
+  }
+
+  return categories;
+});
+```
+
+- `Number(...) === CATEGORY_TYPE.INCOME ? ... : ...`で絞り込む（`===`の等価判定でないと`CategoryTypeCode`のリテラル型`1 | 2`に絞り込まれず型エラーになる。想定外の値はEXPENSEにフォールバックする、エラーにはしない。フロント側は`CATEGORY_TYPE`経由でしか`typeCode`を送らないため実際に想定外の値が来ることはなく、実APIのzodバリデーションが担うべき検証をモック側で肩代わりする必要はない）
+- 件数を`while`+`push(...)`で下限保証する（`if`によるスキップだと、fakerの生成数が足りない回だけ画面確認・テストで想定したデータ（親子関係など）が現れない不安定さが残るため）
+- `withConsistentTypeCode`で`parentId`・`typeCode`をfakerのランダム値から仕様どおりの値に上書きする（GET `/api/categories`はネスト構造で返すため、orval生成の`getGetApiCategoriesResponseMock()`はトップレベル要素の`children`に子カテゴリを含めてランダム生成するが、各フィールドは独立して生成されるため、子の`parentId`が実際の親の`id`と一致しない・親子で`typeCode`が食い違う、といった不整合が起きる。トップレベルは`parentId: null`固定、`children`の各要素は`parentId`をその親の`id`に固定し、`typeCode`もトップレベルと揃える）
+
+**ブラウザでのMSW起動（開発サーバー、`NEXT_PUBLIC_API_MOCKING=enabled`時）:**
+
+`app/providers.tsx`で`worker.start()`のPromiseを待たずに`children`をレンダリングすると、Service Worker登録完了前にTanStack Queryの初回fetchが発火し、モックされず実サーバー（未実装のスタブ等）に素通りしてしまうレースコンディションが発生する（[MSW公式ドキュメント](https://mswjs.io/docs/integrations/browser)が明記している既知の問題）。ハードリロードでも再現しうる（タイミング次第で毎回発生しうるため）。
+
+対処として、`worker.start()`が解決するまで`children`のレンダリング自体を止める（`mockingReady`のようなstateでガードする）。
 
 **結合テスト用DBの構成（2026-07-20実装）:**
 
