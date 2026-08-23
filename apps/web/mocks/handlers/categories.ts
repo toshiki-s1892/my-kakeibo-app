@@ -1,13 +1,17 @@
-import {
-  getGetApiCategoriesMockHandler,
-  getGetApiCategoriesResponseMock,
-} from '@/lib/api/generated/categories/categories.msw';
+import { getGetApiCategoriesResponseMock } from '@/lib/api/generated/categories/categories.msw';
 import { CATEGORY_TYPE } from '@repo/common';
+import { http, HttpResponse } from 'msw';
 
 const MIN_SAMPLE_CATEGORIES = 6;
 
-export const categoriesHandler = getGetApiCategoriesMockHandler((info) => {
+export const categoriesHandler = http.get('*/api/categories', async (info) => {
   const url = new URL(info.request.url);
+  const mockState = new URL(window.location.href).searchParams.get('mockState');
+
+  if (mockState === 'error') {
+    return HttpResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
+
   const typeCode =
     Number(url.searchParams.get('typeCode')) === CATEGORY_TYPE.INCOME
       ? CATEGORY_TYPE.INCOME
@@ -28,5 +32,10 @@ export const categoriesHandler = getGetApiCategoriesMockHandler((info) => {
     categories.push(...getGetApiCategoriesResponseMock().categories.map(withConsistentTypeCode));
   }
 
-  return { categories };
+  if (mockState === 'empty') return HttpResponse.json({ categories: [] });
+  if (mockState === 'noChildren') {
+    return HttpResponse.json({ categories: categories.map((c) => ({ ...c, children: [] })) });
+  }
+
+  return HttpResponse.json({ categories });
 });

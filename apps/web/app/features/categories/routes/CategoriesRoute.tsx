@@ -40,9 +40,6 @@ export const CategoriesRoute = () => {
       />
       {/* 各タブのリスト表示を記載する */}
 
-      {categories.isPending && <p>Loading...</p>}
-      {categories.error && <p>Error: {categories.error.message}</p>}
-
       <CategoryTable categories={categories} categoryPin={categoryPin} />
     </div>
   );

@@ -1,5 +1,5 @@
 import { QueryBoundary } from '@/components/QueryBoundary';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { useCategories } from '../hooks/useCategories';
 import { useCategoryPin } from '../hooks/useCategoryPin';
 import { CategoryRow } from './CategoryRow';
@@ -15,7 +15,11 @@ export const CategoryTable = ({ categories, categoryPin }: CategoryTableProps) =
       isPending={categories.isPending}
       error={categories.error}
       onRetry={() => categories.refetch()}
-      skeleton={<Skeleton className="h-14 w-full" />}
+      loading={
+        <div className="flex h-14 w-full items-center justify-center">
+          <Spinner />
+        </div>
+      }
     >
       <ul className="border-border rounded-md border-2 p-4">
         {categories.data?.categories.map((category) => (
