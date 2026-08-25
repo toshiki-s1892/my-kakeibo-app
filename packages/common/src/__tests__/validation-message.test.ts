@@ -5,7 +5,7 @@ import {
   minDateMessage,
   minLengthMessage,
   minNumberMessage,
-} from '../error-message';
+} from '../validation-message';
 
 describe('minLengthMessage', () => {
   test('渡した最小文字数を含むメッセージを返す', () => {

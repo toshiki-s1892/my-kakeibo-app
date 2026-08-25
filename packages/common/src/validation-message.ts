@@ -25,11 +25,3 @@ export const minDateMessage = (date: string) => `${date}以降の日付を入力
 export const invalidNumberMessage = '数値で入力してください';
 export const minNumberMessage = (number: number) => `${number}以上の数値で入力してください`;
 export const maxNumberMessage = (number: number) => `${number}以内の数値で入力してください`;
-
-// ==========================================
-// apiエラー
-// ==========================================
-export const unexpectedErrorMessage =
-  '予期しないエラーが発生しました。時間をおいて再度お試しください。';
-export const validationErrorMessage = 'バリデーションエラー';
-export const alreadySetupMessage = 'すでにプロフィールが登録されています';
