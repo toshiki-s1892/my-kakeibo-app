@@ -22,7 +22,7 @@
     "web": "workspace:*"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "packageManager": "bun@1.3.13",
   "workspaces": [
