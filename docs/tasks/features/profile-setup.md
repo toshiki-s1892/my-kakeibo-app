@@ -13,7 +13,7 @@
 - [x] 8. 動作確認（DBへの挿入を確認）
 - [x] 9. バリデーションエラー（400）のレスポンス形式を `ErrorResponseSchema` に統一する（詳細: [api-conventions.md](../../architecture/decisions/api-conventions.md#エラーレスポンス)）
   - [x] `server/shared/error.ts` の `ErrorResponseSchema` から `code` を削除（HTTPステータスと重複するため）
-  - [x] `packages/common/src/error-message.ts` に `validationErrorMessage` を追加
+  - [x] `packages/common/src/api-error-message.ts` に `validationErrorMessage` を追加
   - [x] `server/shared/default-hook.ts` に `validationErrorHook` を定義（バリデーション失敗時に `HTTPException(HTTP_STATUS.BAD_REQUEST, { cause: result.error })` を throw するだけ）
   - [x] `server/shared/error-handler.ts` に `errorHandler` を定義（`HTTPException` の `cause` が `ZodError` かどうかで判定して `ErrorResponseSchema` 形式に整形する `onError` 用ハンドラ）
   - [x] `app/api/[...route]/route.ts` の `app` に `app.onError(errorHandler)` を指定（ここ1箇所で `profileRouter` 含む全エラーをキャッチできる。`app`側への`defaultHook`指定は不要）

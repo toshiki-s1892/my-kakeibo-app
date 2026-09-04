@@ -1,17 +1,17 @@
-import { getAuth } from '@clerk/hono';
+import { AuthEnv } from '@/server/lib/auth';
+import { db } from '@/server/lib/db';
 import { RouteHandler } from '@hono/zod-openapi';
 import { LibsqlError } from '@libsql/client';
 import { alreadySetupMessage, HTTP_STATUS, RELATIONSHIP_CODE } from '@repo/common';
 import { categoriesTable, familyMembersTable, usersTable } from '@repo/db/schema';
 import { DrizzleQueryError } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
-import { db } from '../../../lib/db';
 import { DEFAULT_CATEGORIES } from '../defaultCategories';
 import { createUserRoute } from '../schema/profileSetupSchema';
 
-export const profileSetupHandler: RouteHandler<typeof createUserRoute> = async (c) => {
+export const profileSetupHandler: RouteHandler<typeof createUserRoute, AuthEnv> = async (c) => {
   // Clerkの認証情報から userId（clerk_id）を取得
-  const { userId } = getAuth(c);
+  const userId = c.var.userId;
 
   // リクエストボディのバリデーションと取得
   const body = c.req.valid('json');
@@ -23,7 +23,7 @@ export const profileSetupHandler: RouteHandler<typeof createUserRoute> = async (
       [user] = await tx
         .insert(usersTable)
         .values({
-          clerk_id: userId!,
+          clerk_id: userId,
           regionCode: body.regionCode,
         })
         .returning({ id: usersTable.id });

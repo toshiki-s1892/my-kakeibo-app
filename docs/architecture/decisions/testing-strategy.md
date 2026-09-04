@@ -110,13 +110,14 @@ app/features/profile-setup/
     └── __tests__/profileSetupFormSchema.test.ts
 
 packages/common/src/
-├── error-message.ts
-└── __tests__/error-message.test.ts
+├── validation-message.ts
+├── api-error-message.ts
+└── __tests__/validation-message.test.ts
 ```
 
 サブディレクトリごとに分ける理由は、`projects`の`include`をディレクトリ単位（`app/features/*/hooks/__tests__/*.test.ts`等）で機械的に指定できるため。feature直下にまとめる方式だと、`hooks`用・`schema`用のテストを`include`で振り分ける際にファイル名の命名規則（`use*.test.ts`か`*FormSchema.test.ts`か）に依存することになり、命名を誤ると意図しないprojectに紛れ込むリスクがある。
 
-**テストの記述規約（2026-07-12決定、`packages/common/src/__tests__/error-message.test.ts`が最初の適用例）:**
+**テストの記述規約（2026-07-12決定、`packages/common/src/__tests__/validation-message.test.ts`が最初の適用例）:**
 
 - `describe`にはコード上の識別子（関数名・スキーマ名）を**英語のまま**書く（`describe('minLengthMessage', ...)`）。翻訳や`Tests`のような接尾辞は付けない。実行結果からコードへ検索で辿れることを優先する
 - ファイル全体を括る外側の`describe`は作らない。vitestの実行結果にはファイルパスが必ず表示されるため冗長になる。実行結果が「ファイルパス > 関数名 > 振る舞い」の3階層で読める形にする
@@ -381,6 +382,8 @@ vi.mock('@clerk/hono', () => ({
 
 `vi.hoisted()`で保持した変数をテストごとに書き換えることで、複数ユーザーが絡むテストケース（家族構成など）にも対応できる。Clerkの「Testing Tokens」（`@clerk/testing`）はブラウザ経由の実サインインフローでボット検知を回避する仕組みであり、`app.request()`で直接ハンドラを叩くこの層には不要。
 
+`server/lib/auth.ts`の`authMiddleware`（`getAuth(c)`の結果から`c.set('userId', userId)`する自前のミドルウェア）はモック対象ではない。`getAuth`のモックさえ差し替えれば、`authMiddleware`自体はモックなしでそのままテストアプリに組み込める（詳細は[api-conventions.mdのuserIdの取得方法](./api-conventions.md#useridの取得方法2026-08-29決定)参照）。
+
 このモックブロックは**各テストファイルの冒頭に置く（2026-07-20決定）**。`vi.mock`はテストファイル単位で巻き上げられる仕様のため、セットアップファイルや共通関数への抽出は効かない。上記コード例をコピーして使い、ファイル間の重複は技術制約上の必要コストと割り切る。
 
 **server層テストの記述パターン（2026-07-20決定）:**
@@ -392,6 +395,7 @@ vi.mock('@clerk/hono', () => ({
 - 401（未認証）は対象外: `proxy.ts`の`auth.protect()`がセッショントークン認証失敗時に404を返すため、`schema.ts`の401レスポンス定義は実質到達不能（[profile-setup.md](../../tasks/features/profile-setup.md)の既知の課題）。到達しない分岐はテストしない
 
 ```ts
+import { AuthEnv, authMiddleware } from '@/server/lib/auth';
 import { errorHandler } from '@/server/shared/error-handler';
 import { clerkMiddleware } from '@clerk/hono';
 import { OpenAPIHono } from '@hono/zod-openapi';
@@ -408,12 +412,12 @@ vi.mock('@clerk/hono', () => ({
 }));
 
 describe('profileHandler', () => {
-  let app: OpenAPIHono;
+  let app: OpenAPIHono<AuthEnv>;
 
   beforeEach(async () => {
     const profileRouter = (await import('@/server/routes/profile')).default;
-    app = new OpenAPIHono();
-    app.use('/profile/*', clerkMiddleware());
+    app = new OpenAPIHono<AuthEnv>();
+    app.use('/profile/*', clerkMiddleware(), authMiddleware);
     app.route('/profile', profileRouter);
     app.onError(errorHandler);
   });

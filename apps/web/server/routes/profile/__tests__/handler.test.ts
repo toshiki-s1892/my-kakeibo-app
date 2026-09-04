@@ -1,3 +1,4 @@
+import { AuthEnv, authMiddleware } from '@/server/lib/auth';
 import { errorHandler } from '@/server/shared/error-handler';
 import { clerkMiddleware } from '@clerk/hono';
 import { OpenAPIHono } from '@hono/zod-openapi';
@@ -17,12 +18,12 @@ vi.mock('@clerk/hono', () => ({
 }));
 
 describe('profileHandler', () => {
-  let app: OpenAPIHono;
+  let app: OpenAPIHono<AuthEnv>;
 
   beforeEach(async () => {
     const profileRouter = (await import('@/server/routes/profile')).default;
-    app = new OpenAPIHono();
-    app.use('/profile/*', clerkMiddleware());
+    app = new OpenAPIHono<AuthEnv>();
+    app.use('/profile/*', clerkMiddleware(), authMiddleware);
     app.route('/profile', profileRouter);
     app.onError(errorHandler);
   });

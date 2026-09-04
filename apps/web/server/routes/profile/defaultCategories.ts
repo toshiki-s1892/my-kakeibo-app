@@ -1,5 +1,5 @@
 import { CATEGORY_COLOR_CODE, CATEGORY_ICON_CODE, CATEGORY_TYPE } from '@repo/common';
-import { categoriesTable } from '@repo/db';
+import { categoriesTable } from '@repo/db/schema';
 
 type DefaultCategory = Omit<typeof categoriesTable.$inferInsert, 'userId'>;
 
