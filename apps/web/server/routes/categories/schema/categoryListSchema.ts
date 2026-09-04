@@ -1,4 +1,8 @@
-import { errorResponseSchema } from '@/server/shared/error';
+import {
+  internalServerErrorResponse,
+  unauthorizedResponse,
+  validationErrorResponse,
+} from '@/server/shared/error/errorResponses';
 import { createRoute } from '@hono/zod-openapi';
 import { CATEGORY_COLOR_CODE, CATEGORY_ICON_CODE, CATEGORY_TYPE } from '@repo/common';
 import { categoryListQuerySchema } from '../request/categoryListRequest';
@@ -70,29 +74,8 @@ export const getCategoriesRoute = createRoute({
         },
       },
     },
-    400: {
-      description: 'リクエストのバリデーションエラー',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-    401: {
-      description: '認証されていない場合',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-    500: {
-      description: 'サーバーエラー',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
+    400: validationErrorResponse,
+    401: unauthorizedResponse,
+    500: internalServerErrorResponse,
   },
 });

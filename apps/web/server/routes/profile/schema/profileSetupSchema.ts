@@ -1,5 +1,11 @@
-import { errorResponseSchema } from '@/server/shared/error';
+import { errorResponseSchema } from '@/server/shared/error/errorResponseSchema';
+import {
+  internalServerErrorResponse,
+  unauthorizedResponse,
+  validationErrorResponse,
+} from '@/server/shared/error/errorResponses';
 import { createRoute } from '@hono/zod-openapi';
+import { alreadySetupMessage } from '@repo/common';
 import { userSetupRequestSchema } from '../request/profileSetupRequest';
 
 export const createUserRoute = createRoute({
@@ -15,37 +21,22 @@ export const createUserRoute = createRoute({
     204: {
       description: 'プロフィールが正常に作成された場合',
     },
-    400: {
-      description: 'リクエストのバリデーションエラー',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-    401: {
-      description: '認証されていない場合',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
+    400: validationErrorResponse,
+    401: unauthorizedResponse,
     409: {
       description: 'すでにプロフィールが登録されている場合',
       content: {
         'application/json': {
           schema: errorResponseSchema,
+          examples: {
+            alreadySetup: {
+              summary: 'すでにプロフィールが登録されている場合',
+              value: { message: alreadySetupMessage },
+            },
+          },
         },
       },
     },
-    500: {
-      description: 'サーバーエラー',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
+    500: internalServerErrorResponse,
   },
 });
