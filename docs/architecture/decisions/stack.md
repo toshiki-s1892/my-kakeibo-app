@@ -26,6 +26,14 @@
 
 ---
 
+## Node.jsバージョン方針: Active LTS（2026-08-30決定）
+
+ローカル開発・CI・ビルド時に使う Node.js は Active LTS を採用する（2026-08-30時点で Node 24）。ルートの `package.json` の `engines.node` を `>=24` として明示する。
+
+**本番の実行環境（Vercel Edge Runtime）とは別軸の方針であることに注意:** `apps/web/app/api/[...route]/route.ts` は `export const runtime = 'edge'` で Vercel Edge Runtime 上で動作しており、Node.js そのものではない。そのため `engines.node` の指定は Edge Runtime での API 互換性（`Map.groupBy` 等の新しい言語機能が使えるか）を保証するものではなく、あくまでローカル開発・CI・ビルド時に使う Node.js バージョンの下限を示すもの。
+
+---
+
 ## フレームワーク: Next.js 16 (App Router) + React 19
 
 **採用理由:**
@@ -66,6 +74,8 @@
 
 実装方針（ルート構成・認証ミドルウェアの適用方法等）は[api-conventions.md](./api-conventions.md)を参照。
 
+**再検討した代替案（不採用）: tRPC（2026-09-03）** — 「TypeScriptモノレポで、フロントエンドの利用者が自分（内部）のみ・外部APIコンシューマなし」という条件は、tRPC公式ドキュメント・oRPC公式・実務記事が繰り返し「tRPCを選ぶべき」と名指しする典型条件であり、このプロジェクトの状況に一致する。npm週次DL・GitHub star共にtRPCが`@hono/zod-openapi`を上回るなど、コードファーストRPCへの支持材料自体は存在する。それでも不採用としたのは、`api-conventions.md`に既に確立された規約（`createRoute`前提のルート・スキーマ・レスポンスのファイル分割、`defaultHook`/`onError`によるエラー整形、`AuthEnv`によるuserId伝播、`hono-rate-limiter`によるレート制限方針）を全面的に書き直すコストが、外部APIコンシューマの提供予定がない現時点で得られる利益（tRPCのOpenAPI出力機能`@trpc/openapi`はまだalpha版であり、移行後もorval・Swagger UIに相当する成果物を維持する保証がない）に見合わないため。将来、外部APIコンシューマの提供が具体的な要件になった時点で改めて検討する。
+
 ---
 
 ## ORM + DB: Drizzle ORM + Turso（分散 SQLite）
@@ -80,7 +90,7 @@
 
 **再検討した代替案（不採用）:** UUID生成の簡潔さ（`gen_random_uuid()`がネイティブにある）を理由にNeon（サーバーレスPostgres）への移行を検討したが、(1) Tursoを選定した当初の「グローバル分散による低レイテンシ」という利点はこのアプリの個人・家族利用規模では元々不要、(2) 「無料運用を維持し続けたい」という要件に対し、Tursoの行数ベースの無料枠（月5億行読み取り・5GBストレージ）の方がNeonのコンピュート時間ベースの無料枠より制限に達しにくく安全、という理由でTursoを維持する結論とした。
 
-DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts`の役割分担）は[api-conventions.md](./api-conventions.md#dbクライアントの分離)を参照。
+DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts`の役割分担）は[api-conventions.md](./api-conventions.md#dbクライアントの分離)を参照。`packages/db`の`package.json`は`exports`にメインエントリ（`.`）を持たず、`./schema`サブパスのみを公開する（2026-09-04、Edge Runtimeでのdotenvクラッシュを機に変更。経緯は同ページ参照）。
 
 **マイグレーション運用: `drizzle-kit generate` + `migrate`（2026-07-20に`push`運用から変更）**
 
