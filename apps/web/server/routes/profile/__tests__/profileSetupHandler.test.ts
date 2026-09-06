@@ -1,4 +1,4 @@
-import { AuthEnv, authMiddleware } from '@/server/lib/auth';
+import { AuthEnv } from '@/server/lib/auth';
 import { errorHandler } from '@/server/shared/error-handler';
 import { clerkMiddleware } from '@clerk/hono';
 import { OpenAPIHono } from '@hono/zod-openapi';
@@ -21,6 +21,7 @@ describe('profileHandler', () => {
   let app: OpenAPIHono<AuthEnv>;
 
   beforeEach(async () => {
+    const { authMiddleware } = await import('@/server/lib/auth');
     const profileRouter = (await import('@/server/routes/profile')).default;
     app = new OpenAPIHono<AuthEnv>();
     app.use('/profile/*', clerkMiddleware(), authMiddleware);
