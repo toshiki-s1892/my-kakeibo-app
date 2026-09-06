@@ -90,11 +90,11 @@ E2Eの対象外（単体・結合テストで担保）: カテゴリ追加/編�
 
 上記の通り環境（node/jsdom）・前処理（Clerkモック・SQLite migrate・MSWセットアップ）が層ごとに異なるため、`apps/web/vitest.config.ts`内でVitestの`projects`機能（モノレポ・複数環境向けの標準構成）を使い、`server`・`hooks`・`schema`の3プロジェクトに分割する。1つの`vitest.config.ts`に環境分岐ロジックを埋め込む方法は取らない。`packages/common`は別パッケージのため、この`projects`には含めず独立した`vitest.config.ts`を持つ。
 
-| project  | environment | 用途・setupFiles                                                  |
-| -------- | ----------- | ----------------------------------------------------------------- |
-| `server` | `node`      | `server/routes`の結合テスト（Clerkモック・SQLite migrate）        |
-| `hooks`  | `jsdom`     | `app/features/*/hooks/`のフックテスト（MSWの`server.listen()`等） |
-| `schema` | `node`      | `app/features/*/schema/`のバリデーション分岐テスト（DOM不要）     |
+| project  | environment | 用途・setupFiles                                                         |
+| -------- | ----------- | ------------------------------------------------------------------------ |
+| `server` | `node`      | `server/routes`・`server/lib`の結合テスト（Clerkモック・SQLite migrate） |
+| `hooks`  | `jsdom`     | `app/features/*/hooks/`のフックテスト（MSWの`server.listen()`等）        |
+| `schema` | `node`      | `app/features/*/schema/`のバリデーション分岐テスト（DOM不要）            |
 
 **テストファイルの配置規約（`__tests__`サブディレクトリ）:**
 
@@ -176,7 +176,7 @@ export default defineConfig({
         test: {
           name: 'server',
           environment: 'node',
-          include: ['server/routes/**/__tests__/*.test.{ts,tsx}'],
+          include: ['server/{routes,lib}/**/__tests__/*.test.{ts,tsx}'],
         },
       },
       {
@@ -368,13 +368,14 @@ Gemini実装時は、プロンプト組み立て・レスポンス解析など�
 Clerk公式も「サードパーティライブラリの内部実装に対する結合テストは書かない」ことを推奨しているため、`@clerk/hono`モジュール自体を`vi.mock()`で丸ごとモックする（`clerkMiddleware()`は`app.use('/profile/*', clerkMiddleware())`で実際にマウントされているため、`getAuth`だけでなく`clerkMiddleware`もモックが必要）。
 
 ```ts
-const { mockUserId } = vi.hoisted(() => ({ mockUserId: { current: 'test-user-id' } }));
+// 変数名はmockClerkId（getAuthが返すのはClerkの生ID。DBの内部userIdとは別物）
+const { mockClerkId } = vi.hoisted(() => ({ mockClerkId: { current: 'test-clerk-id' } }));
 
 vi.mock('@clerk/hono', () => ({
   clerkMiddleware: () => async (_c: Context, next: Next) => {
     await next(); // 認証チェックをスキップして素通しするだけ
   },
-  getAuth: () => ({ userId: mockUserId.current }),
+  getAuth: () => ({ userId: mockClerkId.current }), // userIdキーはClerkのgetAuth自体の戻り値の形なので変更しない
 }));
 ```
 
@@ -382,7 +383,7 @@ vi.mock('@clerk/hono', () => ({
 
 `vi.hoisted()`で保持した変数をテストごとに書き換えることで、複数ユーザーが絡むテストケース（家族構成など）にも対応できる。Clerkの「Testing Tokens」（`@clerk/testing`）はブラウザ経由の実サインインフローでボット検知を回避する仕組みであり、`app.request()`で直接ハンドラを叩くこの層には不要。
 
-`server/lib/auth.ts`の`authMiddleware`（`getAuth(c)`の結果から`c.set('userId', userId)`する自前のミドルウェア）はモック対象ではない。`getAuth`のモックさえ差し替えれば、`authMiddleware`自体はモックなしでそのままテストアプリに組み込める（詳細は[api-conventions.mdのuserIdの取得方法](./api-conventions.md#useridの取得方法2026-08-29決定)参照）。
+`server/lib/auth.ts`の`authMiddleware`・`requireUserMiddleware`（それぞれ`c.set('clerkId', ...)`・`c.set('userId', ...)`する自前のミドルウェア）はどちらもモック対象ではない。`getAuth`のモックさえ差し替えれば、両ミドルウェアともモックなしでそのままテストアプリに組み込める（詳細は[api-conventions.mdのuserIdの取得方法](./api-conventions.md#useridの取得方法2026-08-29決定)参照）。ただし`requireUserMiddleware`はDBにアクセスするミドルウェアのため、テストファイルでの読み込み方に注意が必要（[静的importが`vi.resetModules()`より先に評価される落とし穴](#静的importがviresetmodulesより先に評価される落とし穴2026-09-06判明)参照）。
 
 このモックブロックは**各テストファイルの冒頭に置く（2026-07-20決定）**。`vi.mock`はテストファイル単位で巻き上げられる仕様のため、セットアップファイルや共通関数への抽出は効かない。上記コード例をコピーして使い、ファイル間の重複は技術制約上の必要コストと割り切る。
 
@@ -395,6 +396,8 @@ vi.mock('@clerk/hono', () => ({
 - 401（未認証）は対象外: `proxy.ts`の`auth.protect()`がセッショントークン認証失敗時に404を返すため、`schema.ts`の401レスポンス定義は実質到達不能（[profile-setup.md](../../tasks/features/profile-setup.md)の既知の課題）。到達しない分岐はテストしない
 
 ```ts
+// authMiddlewareはDBにアクセスしないミドルウェアなので静的importのままで問題ない
+// （requireUserMiddlewareを使うルートは動的importが必須。理由は次節参照）
 import { AuthEnv, authMiddleware } from '@/server/lib/auth';
 import { errorHandler } from '@/server/shared/error-handler';
 import { clerkMiddleware } from '@clerk/hono';
@@ -402,13 +405,13 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import { usersTable } from '@repo/db/schema';
 import { Context, Next } from 'hono';
 
-const { mockUserId } = vi.hoisted(() => ({ mockUserId: { current: 'test-user-id' } }));
+const { mockClerkId } = vi.hoisted(() => ({ mockClerkId: { current: 'test-clerk-id' } }));
 
 vi.mock('@clerk/hono', () => ({
   clerkMiddleware: () => async (_c: Context, next: Next) => {
     await next();
   },
-  getAuth: () => ({ userId: mockUserId.current }),
+  getAuth: () => ({ userId: mockClerkId.current }),
 }));
 
 describe('profileHandler', () => {
@@ -484,3 +487,17 @@ describe('profileHandler', () => {
 `app.request()`の使い方は[Hono公式: Testing Helper](https://hono.dev/docs/guides/testing)参照。POSTボディは`JSON.stringify()`し`Content-Type: application/json`ヘッダを明示する。
 
 異常系テストでは`errorHandler`内の`console.error`（想定外エラーのログ出力）が実行時に出力されるが、これは意図的に発生させた500エラーが正しくログ記録されている証跡であり、テスト失敗ではない。
+
+**静的importが`vi.resetModules()`より先に評価される落とし穴（2026-09-06判明）:** `categoryListHandler.test.ts`に`requireUserMiddleware`を追加した際、`SQLITE_ERROR: no such table: users`（`server/lib/auth.ts`内のDBクエリで発生）に遭遇した。原因は、テストファイル冒頭の`import { authMiddleware, requireUserMiddleware } from '@/server/lib/auth'`が、テストファイル読み込み時（＝最初の`beforeEach`・`vi.resetModules()`が走るより前）に一度だけ評価される点にあった。`auth.ts`は内部で`db.ts`を静的importしているため、この最初の評価で「テスト用DBに切り替わる前の、一番最初のDB接続」を`auth.ts`のモジュールスコープに固定してしまい、以降`vi.resetModules()`で新しいDBに切り替えても`auth.ts`側の`db`参照は更新されない。`authMiddleware`単体（DBにアクセスしない）ではこの問題は顕在化せず、DBにアクセスする`requireUserMiddleware`を追加して初めて表面化した。
+
+対策は、`categoriesRouter`と同様に`auth.ts`からのimportも`beforeEach`内の動的importに変えること。
+
+```ts
+beforeEach(async () => {
+  const { authMiddleware, requireUserMiddleware } = await import('@/server/lib/auth');
+  const categoriesRouter = (await import('@/server/routes/categories')).default;
+  // ...
+});
+```
+
+**原則:** DBに依存するモジュール（`db.ts`を静的importしているモジュール）を扱うテストファイルでは、そのモジュールの値・関数のimportは必ず`beforeEach`内の動的importにする。型のみのimport（`import type { UserEnv } from '@/server/lib/auth'`等）は型がコンパイル時に消えるため対象外で、静的importのままでよい。
