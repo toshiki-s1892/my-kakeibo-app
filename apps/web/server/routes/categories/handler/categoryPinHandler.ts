@@ -1,4 +1,4 @@
-import { AuthEnv } from '@/server/lib/auth';
+import { UserEnv } from '@/server/lib/auth';
 import { db } from '@/server/lib/db';
 import { RouteHandler } from '@hono/zod-openapi';
 import {
@@ -13,7 +13,7 @@ import { HTTPException } from 'hono/http-exception';
 import { deleteCategoryPinRoute, putCategoryPinRoute } from '../schema/categoryPinSchema';
 
 // ピン留め処理
-export const putCategoryPinHandler: RouteHandler<typeof putCategoryPinRoute, AuthEnv> = async (
+export const putCategoryPinHandler: RouteHandler<typeof putCategoryPinRoute, UserEnv> = async (
   c
 ) => {
   const userId = c.var.userId;
@@ -43,7 +43,7 @@ export const putCategoryPinHandler: RouteHandler<typeof putCategoryPinRoute, Aut
 // ピン留め解除処理
 export const deleteCategoryPinHandler: RouteHandler<
   typeof deleteCategoryPinRoute,
-  AuthEnv
+  UserEnv
 > = async (c) => {
   const userId = c.var.userId;
   const { categoryId } = c.req.valid('param');

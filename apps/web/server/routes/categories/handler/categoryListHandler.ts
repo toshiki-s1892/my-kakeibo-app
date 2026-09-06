@@ -1,4 +1,4 @@
-import { AuthEnv } from '@/server/lib/auth';
+import { UserEnv } from '@/server/lib/auth';
 import { db } from '@/server/lib/db';
 import { RouteHandler } from '@hono/zod-openapi';
 import { categoriesTable } from '@repo/db/schema';
@@ -6,8 +6,8 @@ import { and, desc, eq, isNull } from 'drizzle-orm';
 import { categoryListResponseSchema } from '../response/categoryListResponse';
 import { getCategoriesRoute } from '../schema/categoryListSchema';
 
-export const getCategoriesHandler: RouteHandler<typeof getCategoriesRoute, AuthEnv> = async (c) => {
-  // Clerkの認証情報から userId（clerk_id）を取得
+export const getCategoriesHandler: RouteHandler<typeof getCategoriesRoute, UserEnv> = async (c) => {
+  // userIdを取得
   const userId = c.var.userId;
   const { typeCode } = c.req.valid('query');
 

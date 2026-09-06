@@ -13,7 +13,7 @@ Hono + Zod OpenAPIを採用した理由は[stack.md](./stack.md#api-hono--zod-op
   - 1機能に複数エンドポイントがある場合のファイル分割は[下記](#複数エンドポイントを持つ機能のファイル分割2026-08-22決定)を参照
 - メインの `app/api/[...route]/route.ts` で各ルートを `.route()` でマウントすると OpenAPI スペックに自動集約される
 - Clerk認証は `@clerk/hono` の `clerkMiddleware()` を使用する（`@hono/clerk-auth` は非推奨）
-- 各ルートに `clerkMiddleware()` と自前の `authMiddleware`（`server/lib/auth.ts`）をチェーンして適用する（例: `app.use('/profile/*', clerkMiddleware(), authMiddleware)`）。詳細は[userIdの取得方法](#useridの取得方法2026-08-29決定)を参照
+- 各ルートに `clerkMiddleware()` と自前の `authMiddleware`（`server/lib/auth.ts`）をチェーンして適用する（例: `app.use('/profile/*', clerkMiddleware(), authMiddleware)`）。DB上のユーザーが既に存在する前提のルートは、続けて`requireUserMiddleware`も適用する（例: `app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware)`）。詳細は[userIdの取得方法](#useridの取得方法2026-08-29決定)を参照
 - Swagger UI は `/api/ui`、OpenAPI スペックは `/api/doc` で公開する（認証不要）
 - Next.jsミドルウェア（`proxy.ts`）でページルーティングレベルの認証を行い、Honoミドルウェアでは実際のuserId取得・未認証時の401判定を担当する
 - エラーレスポンスは全ルートで共通スキーマ（`errorResponseSchema`）を使用する（詳細は[エラーレスポンス](#エラーレスポンス)参照）
@@ -26,39 +26,77 @@ Hono + Zod OpenAPIを採用した理由は[stack.md](./stack.md#api-hono--zod-op
 
 ### userIdの取得方法（2026-08-29決定）
 
-各ハンドラ内で `getAuth(c)` を直接呼ぶのではなく、`server/lib/auth.ts` の `authMiddleware`（`hono/factory` の `createMiddleware`）が未認証チェックと `c.set('userId', userId)` を一元的に行う。
+（2026-09-06改訂: Clerk IDとDBの内部IDを別の変数として分離した。経緯は本節末尾の「Clerk IDとDB内部IDを分離した理由」を参照）
+
+各ハンドラ内で `getAuth(c)` を直接呼ぶのではなく、`server/lib/auth.ts` の2段階のミドルウェア（どちらも `hono/factory` の `createMiddleware`）が認証・ユーザー解決を一元的に行う。
 
 ```ts
 // server/lib/auth.ts
-type Variables = { userId: string };
-export type AuthEnv = { Variables: Variables };
+type ClerkVariables = { clerkId: string };
+export type AuthEnv = { Variables: ClerkVariables };
 
-export const authMiddleware = createMiddleware<{ Variables: Variables }>(async (c, next) => {
+export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
   const { userId } = getAuth(c);
   if (!userId) {
     return c.json({ message: unauthorizedErrorMessage }, HTTP_STATUS.UNAUTHORIZED);
   }
-  c.set('userId', userId);
+  c.set('clerkId', userId); // Clerkの生ID。DBの内部IDとは別物
+  await next();
+});
+
+type UserVariables = ClerkVariables & { userId: string };
+export type UserEnv = { Variables: UserVariables };
+
+export const requireUserMiddleware = createMiddleware<UserEnv>(async (c, next) => {
+  const clerkId = c.var.clerkId;
+
+  const [user] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.clerk_id, clerkId));
+
+  if (!user) {
+    return c.json({ message: unauthorizedErrorMessage }, HTTP_STATUS.UNAUTHORIZED);
+  }
+
+  c.set('userId', user.id); // DBの内部ID（usersTable.id）
   await next();
 });
 ```
 
-ハンドラ側は `c.var.userId` で取得する。`AuthEnv` により `string` 型として保証されるため、`getAuth(c)` 直呼びの頃に必要だった非null断定（`userId!`）が不要になる。
+- `authMiddleware` はDBに一切アクセスせず、未認証チェックと `c.var.clerkId`（Clerkの生ID）のセットのみを担当する
+- `requireUserMiddleware` は `clerkId` から `usersTable` を検索し、DB上の内部ID（`users.id`）を `c.var.userId` にセットする。**`categoriesTable.userId` 等、DBの外部キーは全てこの内部ID（`users.id`）を指しており、Clerkの生IDではない**（[database.mdのテーブル定義](../database.md)参照）ため、所有者チェックを行うハンドラは必ず `requireUserMiddleware` まで適用したうえで `c.var.userId` を使う
+- ルート登録は用途に応じてどちらまで適用するかを選ぶ
+  - `profileSetupHandler` のように**まだDBにユーザーが存在しない前提**（初回登録）で呼ばれるルートは `authMiddleware` のみ（`app.use('/profile/*', clerkMiddleware(), authMiddleware)`）。`clerkId` をそのまま `usersTable.clerk_id` に保存してユーザーを新規作成する
+  - `categories` のように**DB上のユーザーが既に存在する前提**のルートは、続けて `requireUserMiddleware` も適用する（`app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware)`）
 
-**`AuthEnv` を各所に明示的に渡す必要がある理由:** `authMiddleware` は `app.use()` された `app`（`route.ts`）に対してのみ `c.set` しており、実際にハンドラを登録する各機能の `OpenAPIHono` インスタンス（`profileRouter` 等）やハンドラファイルは別インスタンス・別ファイルのため、TypeScriptの型情報は自動では伝播しない。そのため保護対象のルーターとハンドラの両方に `AuthEnv` を明示的に渡す。
+ハンドラ側はそれぞれ `c.var.clerkId` / `c.var.userId` で取得する。`AuthEnv`・`UserEnv` により `string` 型として保証されるため、`getAuth(c)` 直呼びの頃に必要だった非null断定（`userId!`）が不要になる。
+
+**`AuthEnv`/`UserEnv` を各所に明示的に渡す必要がある理由:** これらのミドルウェアは `app.use()` された `app`（`route.ts`）に対してのみ `c.set` しており、実際にハンドラを登録する各機能の `OpenAPIHono` インスタンス（`profileRouter`・`categoriesRouter` 等）やハンドラファイルは別インスタンス・別ファイルのため、TypeScriptの型情報は自動では伝播しない。そのため保護対象のルーターとハンドラの両方に、適用したミドルウェアに応じて `AuthEnv` または `UserEnv` を明示的に渡す。
 
 ```ts
-// server/routes/profile/index.ts
+// server/routes/profile/index.ts（authMiddlewareのみ適用するルート）
 const profileRouter = new OpenAPIHono<AuthEnv>({ defaultHook: validationErrorHook });
 
 // server/routes/profile/handler/profileSetupHandler.ts
 export const profileSetupHandler: RouteHandler<typeof createUserRoute, AuthEnv> = async (c) => {
-  const userId = c.var.userId;
+  const clerkId = c.var.clerkId;
+  // ...
+};
+
+// server/routes/categories/index.ts（requireUserMiddlewareまで適用するルート）
+const categoriesRouter = new OpenAPIHono<UserEnv>({ defaultHook: validationErrorHook });
+
+// server/routes/categories/handler/categoryListHandler.ts
+export const getCategoriesHandler: RouteHandler<typeof getCategoriesRoute, UserEnv> = async (c) => {
+  const userId = c.var.userId; // DBの内部ID
   // ...
 };
 ```
 
-**`declare module 'hono' { interface ContextVariableMap { userId: string } }` によるグローバル型拡張は採用しない:** Clerk公式の `@clerk/hono` 自体はこの手法（モジュール拡張）で `getAuth` をどのインスタンスからでも呼べるようにしているが、自前の `userId` に同じ手法を使うと、`authMiddleware` を適用し忘れたルートでも型上は `userId` が常に存在することになってしまい、認証チェック漏れを型チェックで検出できなくなる。Hono公式コミュニティのDiscussion（[honojs/discussions#3257](https://github.com/orgs/honojs/discussions/3257)）でも、認証ミドルウェアに関してはグローバル拡張ではなく個別の `Variables` ジェネリクスを推奨している。
+**`declare module 'hono' { interface ContextVariableMap { userId: string } }` によるグローバル型拡張は採用しない:** Clerk公式の `@clerk/hono` 自体はこの手法（モジュール拡張）で `getAuth` をどのインスタンスからでも呼べるようにしているが、自前の変数に同じ手法を使うと、`authMiddleware`・`requireUserMiddleware` を適用し忘れたルートでも型上は `clerkId`・`userId` が常に存在することになってしまい、適用漏れを型チェックで検出できなくなる。Hono公式コミュニティのDiscussion（[honojs/discussions#3257](https://github.com/orgs/honojs/discussions/3257)）でも、認証ミドルウェアに関してはグローバル拡張ではなく個別の `Variables` ジェネリクスを推奨している。
+
+**Clerk IDとDB内部IDを分離した理由（2026-09-06決定）:** 当初は `authMiddleware` が `c.set('userId', userId)` と、Clerkの生IDをそのまま `userId` という名前でセットしていた。`categoryListHandler.ts` はこの `c.var.userId` をそのまま `eq(categoriesTable.userId, userId)` の絞り込みに使っていたが、`categoriesTable.userId` は実際には `usersTable.id`（DBの内部UUID）への外部キーであり、Clerkの生IDとは型は同じ`string`でも中身が別物だった。`profileSetupHandler.ts` がユーザー作成時に `usersTable.id`（`.returning()`で取得した内部ID）を使って `categoriesTable.userId` を保存していたため、実際にログインしたユーザーが自分のカテゴリー一覧を取得しようとすると常に0件になる、というテストでは気づきにくい本番バグを生んでいた。同じ`userId`という名前で「Clerkの認証ID」と「DB内部ID」の両方を呼んでいたことが混同の原因だったため、`clerkId`（Clerk由来の生ID）と`userId`（DBの内部ID＝`users.id`）を型・変数名レベルで明確に分離し、両者を橋渡しする専用のミドルウェア（`requireUserMiddleware`）を追加した。
 
 ### 複数エンドポイントを持つ機能のファイル分割（2026-08-22決定）
 

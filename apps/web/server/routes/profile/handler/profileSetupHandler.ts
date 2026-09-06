@@ -11,7 +11,7 @@ import { createUserRoute } from '../schema/profileSetupSchema';
 
 export const profileSetupHandler: RouteHandler<typeof createUserRoute, AuthEnv> = async (c) => {
   // Clerkの認証情報から userId（clerk_id）を取得
-  const userId = c.var.userId;
+  const clerkId = c.var.clerkId;
 
   // リクエストボディのバリデーションと取得
   const body = c.req.valid('json');
@@ -23,7 +23,7 @@ export const profileSetupHandler: RouteHandler<typeof createUserRoute, AuthEnv> 
       [user] = await tx
         .insert(usersTable)
         .values({
-          clerk_id: userId,
+          clerk_id: clerkId,
           regionCode: body.regionCode,
         })
         .returning({ id: usersTable.id });
