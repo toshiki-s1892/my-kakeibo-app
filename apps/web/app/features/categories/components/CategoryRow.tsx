@@ -29,7 +29,7 @@ export const CategoryRow = ({ category, categoryPin }: CategoryRowProps) => {
         {/* 子カテゴリ表示/非表示切り替えトグル */}
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           disabled={!hasChildren}
           className={hasChildren ? 'visible' : 'invisible'}
           aria-label={isChildrenExpanded ? '子カテゴリーを閉じる' : '子カテゴリーを開く'}
@@ -37,7 +37,7 @@ export const CategoryRow = ({ category, categoryPin }: CategoryRowProps) => {
         >
           <ChevronRight
             className={cn(
-              'transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
+              'size-6 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
               isChildrenExpanded && 'rotate-90'
             )}
           />
@@ -53,13 +53,13 @@ export const CategoryRow = ({ category, categoryPin }: CategoryRowProps) => {
         {category.typeCode === CATEGORY_TYPE.EXPENSE && (
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm"
             className="ml-auto"
             disabled={categoryPin.isPending}
             aria-label={category.isPinned ? 'ピン留めを解除する' : 'ピン留めする'}
             onClick={() => categoryPin.togglePin(category.id, !category.isPinned)}
           >
-            <PinIconComponent />
+            <PinIconComponent className="size-6" />
           </Button>
         )}
       </div>
