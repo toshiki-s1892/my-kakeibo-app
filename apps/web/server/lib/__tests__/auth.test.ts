@@ -1,4 +1,5 @@
 import { AuthEnv, UserEnv } from '@/server/lib/auth';
+import { unauthorizedErrorMessage } from '@repo/common';
 import { usersTable } from '@repo/db/schema';
 import { Hono } from 'hono';
 
@@ -37,7 +38,7 @@ describe('authMiddleware', () => {
 
       const res = await app.request('/');
       expect(res.status).toBe(401);
-      expect(await res.json()).toEqual({ message: '認証が必要です' });
+      expect(await res.json()).toEqual({ message: unauthorizedErrorMessage });
     });
   });
 });
@@ -74,7 +75,7 @@ describe('requireUserMiddleware', () => {
     test('clerkIdに紐づくユーザーが存在しない場合は401エラーが返る', async () => {
       const res = await app.request('/');
       expect(res.status).toBe(401);
-      expect(await res.json()).toEqual({ message: '認証が必要です' });
+      expect(await res.json()).toEqual({ message: unauthorizedErrorMessage });
     });
   });
 });

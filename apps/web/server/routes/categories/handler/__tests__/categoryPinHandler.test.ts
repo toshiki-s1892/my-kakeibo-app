@@ -94,7 +94,7 @@ describe('categoryPinHandler', () => {
 
   describe('putCategoryPinHandler', () => {
     describe('正常系', () => {
-      test('有効なリクエストボディを送るとカテゴリをピン留めされる', async () => {
+      test('有効なカテゴリーIDを指定するとカテゴリをピン留めされる', async () => {
         const category = await insertCategory();
 
         const res = await app.request(`/categories/${category.id}/pin`, {
@@ -186,7 +186,7 @@ describe('categoryPinHandler', () => {
 
   describe('deleteCategoryPinHandler', () => {
     describe('正常系', () => {
-      test('有効なリクエストボディを送るとカテゴリをピン留め解除される', async () => {
+      test('有効なカテゴリーIDを指定するとカテゴリをピン留め解除される', async () => {
         await insertCategory({ name: '光熱費', isPinned: true });
         const targetCategory = await insertCategory({ name: '食費', isPinned: true });
 
