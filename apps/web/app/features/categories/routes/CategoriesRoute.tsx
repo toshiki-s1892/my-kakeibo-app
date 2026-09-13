@@ -1,5 +1,7 @@
 'use client';
 import { AddButton } from '@/components/AddButton';
+import { QueryBoundary } from '@/components/QueryBoundary';
+import { Spinner } from '@/components/ui/spinner';
 import { CATEGORY_TYPE_VALUE, CategoryTypeValue } from '@repo/common';
 import { useState } from 'react';
 import { CATEGORY_TAB } from '../categoryTab';
@@ -39,8 +41,18 @@ export const CategoriesRoute = () => {
         onClick={() => setOpenCreateModal(true)}
       />
       {/* 各タブのリスト表示を記載する */}
-
-      <CategoryTable categories={categories} categoryPin={categoryPin} />
+      <QueryBoundary
+        isPending={categories.isPending}
+        error={categories.error}
+        onRetry={() => categories.refetch()}
+        loading={
+          <div className="flex h-14 w-full items-center justify-center">
+            <Spinner />
+          </div>
+        }
+      >
+        <CategoryTable categories={categories.data?.categories ?? []} categoryPin={categoryPin} />
+      </QueryBoundary>
     </div>
   );
 };
