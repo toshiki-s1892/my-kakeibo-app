@@ -9,6 +9,17 @@ export const GENDER_OPTIONS = [
   { value: 'OTHER', label: 'その他' },
 ] as const;
 
+// カテゴリタイプ
+export const CATEGORY_TYPE_VALUE = {
+  EXPENSE: 'EXPENSE',
+  INCOME: 'INCOME',
+} as const;
+
+export const CATEGORY_TYPE_OPTIONS = [
+  { value: CATEGORY_TYPE_VALUE.EXPENSE, label: '支出' },
+  { value: CATEGORY_TYPE_VALUE.INCOME, label: '収入' },
+] as const;
+
 // 家族構成
 export const RELATIONSHIP_OPTIONS = [
   { value: '1', label: '本人' },

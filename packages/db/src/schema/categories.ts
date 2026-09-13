@@ -1,5 +1,8 @@
+import { CATEGORY_COLOR_CODE, CATEGORY_ICON_CODE, CATEGORY_TYPE } from '@repo/common';
 import { sql } from 'drizzle-orm';
 import { AnySQLiteColumn, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { createSelectSchema } from 'drizzle-zod';
+import z from 'zod';
 import { usersTable } from './users.js';
 
 // ==========================================
@@ -34,3 +37,17 @@ export const categoriesTable = sqliteTable(
       .where(sql`${table.deletedAt} IS NULL`),
   ]
 );
+
+/**
+ * カテゴリー一覧/詳細の取得スキーマ
+ */
+export const selectCategorySchema = createSelectSchema(categoriesTable, {
+  typeCode: () => z.enum(CATEGORY_TYPE),
+  icon: () => z.enum(CATEGORY_ICON_CODE),
+  color: () => z.enum(CATEGORY_COLOR_CODE),
+}).omit({
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+});

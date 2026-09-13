@@ -13,13 +13,14 @@
 - [x] 8. 動作確認（DBへの挿入を確認）
 - [x] 9. バリデーションエラー（400）のレスポンス形式を `ErrorResponseSchema` に統一する（詳細: [api-conventions.md](../../architecture/decisions/api-conventions.md#エラーレスポンス)）
   - [x] `server/shared/error.ts` の `ErrorResponseSchema` から `code` を削除（HTTPステータスと重複するため）
-  - [x] `packages/common/src/error-message.ts` に `validationErrorMessage` を追加
+  - [x] `packages/common/src/api-error-message.ts` に `validationErrorMessage` を追加
   - [x] `server/shared/default-hook.ts` に `validationErrorHook` を定義（バリデーション失敗時に `HTTPException(HTTP_STATUS.BAD_REQUEST, { cause: result.error })` を throw するだけ）
   - [x] `server/shared/error-handler.ts` に `errorHandler` を定義（`HTTPException` の `cause` が `ZodError` かどうかで判定して `ErrorResponseSchema` 形式に整形する `onError` 用ハンドラ）
   - [x] `app/api/[...route]/route.ts` の `app` に `app.onError(errorHandler)` を指定（ここ1箇所で `profileRouter` 含む全エラーをキャッチできる。`app`側への`defaultHook`指定は不要）
   - [x] `server/routes/profile/index.ts` の `profileRouter` に `new OpenAPIHono({ defaultHook: validationErrorHook })` を指定（`.openapi()` 時に焼き込まれるため必須）
   - 既知の課題（別タスク）: `proxy.ts` の `auth.protect()` はセッショントークン認証失敗時に404を返すため、`schema.ts` の401レスポンス定義は実質到達不能
 - [x] 10. `server/shared/error-handler.ts` の想定外例外（500固定）分岐に `console.error`（Clerkの`userId`・リクエストパス・エラー内容）を追加（[api-conventions.mdのエラーログ](../../architecture/decisions/api-conventions.md#エラーログ)参照。`profile-setup`専用ではなく全ルート共通の対応）
+- [x] 11. 多重タブ・二重送信で`users.clerk_id`のUNIQUE制約に違反した場合を409（想定外エラーではなく業務上のコンフリクト）として扱う（2026-07-20完了、PRレビュー対応。`usersTable`へのINSERTだけを個別にtry/catchで囲んで判定を絞り込む方式。[api-conventions.mdのDB制約違反の409マッピング](../../architecture/decisions/api-conventions.md#db制約違反の409マッピング2026-07-20決定profile-setupが最初の適用例)参照。フロント側は409を204と同様`/dashboard`へ誘導）
 
 ## フロントエンド基盤
 
@@ -62,3 +63,7 @@
 ## クリーンアップ
 
 - [x] 1. `server/middleware.ts` を削除（古いテスト用コード）
+
+## 既知の課題（未対応）
+
+- [ ] 1. `useProfileSetupForm.ts` の `onSuccess` 内409分岐が到達不能（2026-08-12発見）。`postApiProfileSetup`は`customFetch`mutator経由のため`!res.ok`（409含む）で常にthrowし`onError`に流れるが、`onSuccess`側は`response.status === HTTP_STATUS.CONFLICT`という到達しない分岐を持ったままになっている。`categories.ts`のorval生成コード構文エラー（[api-conventions.mdの一覧取得エンドポイントのレスポンス形状](../../architecture/decisions/api-conventions.md#一覧取得エンドポイントのレスポンス形状2026-08-12決定)参照、修正済み）がプロジェクト全体の型チェックを無効化していたため今まで検出されなかった。`frontend-conventions.md`の「フロントエンドのエラーハンドリング方針」・`.claude/CLAUDE.md`の「orval生成hooksはHTTPエラーでもthrowしない」という前提記述も、`customFetch`mutator導入前の古い内容のまま止まっている可能性があり、あわせて見直しが必要

@@ -23,7 +23,7 @@ flowchart TD
     transactions["(app)/transactions\n一覧タブ"]
     categories["(app)/categories"]
     familyMembers["(app)/family-members"]
-    advice["(app)/advice\n本格的アドバイス"]
+    advice["(app)/advice\nAIアドバイス"]
   end
 
   transactions -- 定期取引タブ --> transactionsRecurring["(app)/transactions/recurring"]

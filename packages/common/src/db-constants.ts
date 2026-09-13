@@ -31,9 +31,9 @@ export const CATEGORY_COLOR_CODE = {
   TEAL: 'teal',
   CYAN: 'cyan',
   INDIGO: 'indigo',
-  SLATE: 'slate',
-  STONE: 'stone',
-  GRAY: 'gray',
+  ROSE: 'rose',
+  VIOLET: 'violet',
+  EMERALD: 'emerald',
 } as const;
 
 // カテゴリアイコン名（CATEGORY_ICON_CODE）。デフォルトカテゴリ16件で使用する15種のみ定義（lucide-reactの正式な候補一覧20〜30種は未確定のため、ピッカーUI実装時に拡張する）
@@ -46,7 +46,7 @@ export const CATEGORY_ICON_CODE = {
   STETHOSCOPE: 'Stethoscope', // 医療費
   SHIRT: 'Shirt', // 服・靴
   SHOPPING_BASKET: 'ShoppingBasket', // 日用品費
-  GAMEPAD: 'Gamepad2', // 趣味・娯楽
+  GAMEPAD: 'Gamepad', // 趣味・娯楽
   GRADUATION_CAP: 'GraduationCap', // 教育費
   SHIELD: 'Shield', // 保険料
   TAG: 'Tag', // その他（支出・収入共通。フォーム未選択時のデフォルトアイコンでもある）

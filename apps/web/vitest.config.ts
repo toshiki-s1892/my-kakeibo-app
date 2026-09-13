@@ -10,13 +10,14 @@ export default defineConfig({
     globals: true, // describe/test/expect/viをimportなしで使えるようにする（tsconfigの"vitest/globals"とセット）
     passWithNoTests: true, // テストファイルが0件でもエラーにしない
     clearMocks: true, // 各テスト前に全モックの呼び出し履歴をクリアする
+    reporters: ['verbose'],
     projects: [
       {
         extends: true,
         test: {
           name: 'server',
           environment: 'node',
-          include: ['server/routes/**/__tests__/*.test.{ts,tsx}'],
+          include: ['server/{routes,lib}/**/__tests__/*.test.{ts,tsx}'],
           setupFiles: ['./vitest.setup.server.ts'],
         },
       },
@@ -25,7 +26,7 @@ export default defineConfig({
         test: {
           name: 'hooks',
           environment: 'jsdom',
-          include: ['features/*/hooks/__tests__/*.test.{ts,tsx}'],
+          include: ['app/features/*/hooks/__tests__/*.test.{ts,tsx}'],
           setupFiles: ['./vitest.setup.hooks.ts'],
         },
       },
@@ -34,7 +35,7 @@ export default defineConfig({
         test: {
           name: 'schema',
           environment: 'node',
-          include: ['features/*/schema/__tests__/*.test.{ts,tsx}'],
+          include: ['app/features/*/schema/__tests__/*.test.{ts,tsx}'],
         },
       },
     ],

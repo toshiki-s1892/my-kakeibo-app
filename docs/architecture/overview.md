@@ -48,11 +48,11 @@ apps/web/
 │   ├── (auth)/          ← 認証ページ群（Clerk）
 │   ├── (onboarding)/    ← 初回登録ページ群（プロフィール設定）
 │   ├── (app)/           ← 認証・初回登録済みページ群（家計簿機能）
-│   └── api/[...route]/  ← Hono API エントリポイント（全ルートを集約）
-├── components/
-│   ├── ui/              ← shadcn/ui コンポーネント
-│   └── provider.tsx     ← TanStack Query の QueryClientProvider
-├── features/            ← 機能別コンポーネント・ロジック
+│   ├── api/[...route]/  ← Hono API エントリポイント（全ルートを集約）
+│   ├── components/      ← 共通UIコンポーネント（[app/配下への集約理由](./decisions/frontend-conventions.md#app-features-ディレクトリ構成)）
+│   │   └── ui/          ← shadcn/ui コンポーネント
+│   ├── features/        ← 機能別コンポーネント・ロジック（同上）
+│   └── providers.tsx    ← TanStack Query の QueryClientProvider
 ├── lib/
 │   └── api/
 │       └── generated/   ← orval が生成するコード（型・React Query hooks）
@@ -60,14 +60,13 @@ apps/web/
     ├── lib/
     │   └── db.ts        ← Drizzle DBクライアント（Next.js環境用）
     ├── shared/          ← 複数ルートで共有するスキーマ
-    │   ├── error.ts     ← ErrorResponseSchema（全ルート共通）
-    │   └── common.ts    ← IdParamSchema・IdResponseSchema
-    └── routes/          ← Hono ルート（機能別）
+    │   └── error.ts     ← errorResponseSchema（全ルート共通）
+    └── routes/          ← Hono ルート（機能別。詳細は[api-conventions.md](./decisions/api-conventions.md#honoルートの実装方針)参照）
         ├── transactions/ ← 取引記録
         │   ├── index.ts      ← ルートをexport
         │   ├── schema.ts     ← Zodスキーマ・OpenAPI定義
         │   └── handler.ts    ← DBアクセス処理
-        ├── categories/   ← カテゴリ管理
+        ├── categories/   ← カテゴリ管理（複数エンドポイントのため schema/・handler/・request/・response/ にサブディレクトリ分割）
         ├── family-members/ ← 家族構成
         ├── profile/      ← プロフィール設定
         └── ai/           ← AI機能
@@ -100,8 +99,10 @@ flowchart LR
 
 - **ヘッダー（PC・スマホ共通）**: 画面タイトル + Clerkの`UserButton`（アカウント設定・サインアウト）のみのミニマム構成。月切り替えや家族メンバースライドなど各画面固有のUIはヘッダーに含めない。`UserButton`もClerkの`appearance` propの対象であり、サインイン/サインアップと同じ方針（[画面設計書運用（Stitch）](./decisions/design-docs-tooling.md#画面設計書運用stitch)参照）でStitchで決めた配色・トーンに統一する
   - `UserButton`のドロップダウンには`<UserButton.MenuItems>`+`<UserButton.Link label="ヘルプ" href="/help" />`（[Clerk公式](https://clerk.com/docs/nextjs/guides/customizing-clerk/adding-items/user-button)）でカスタム項目「ヘルプ」を追加する（[help.md](../specs/features/help.md)参照）。ナビ項目・専用ヘルプアイコンの追加ではなく既存のアカウント設定の入口に相乗りする形のため、下記の「専用の『設定』項目を追加しない」方針とも矛盾しない
-- **ナビゲーション（PC・スマホ共通の下部固定タブバー）**: トップレベル画面5つ（ホーム・取引記録・カテゴリ管理・家族構成管理・本格的アドバイス。[画面一覧](../specs/overview.md#画面一覧)参照）への切り替えを、自前の下部固定タブバーコンポーネント1つで統一する（ナビ項目5つ。アイコン+ラベル。アイコンの具体的な選定はStitchでのデザイン確定後に行う）。個人開発・家族利用というスケールを踏まえ、PC専用にshadcn/uiの`Sidebar`コンポーネントを別途実装・保守するコストより、1コンポーネントで統一する実装のシンプルさを優先した（PCでは画面いっぱいに伸ばさず中央寄せで幅を制限し、間延びを抑える。具体的にはメインコンテンツと同じ最大幅[1200px]に揃え、タブ間の余白とクリック領域を確保する）。専用の「設定」項目・「レシート」専用項目は追加しない（家族構成管理・カテゴリ管理がアプリ固有の設定に該当し、アカウント自体の設定はClerkの`UserButton`のドロップダウンで足りるため。レシート読み取りは後述のFABから入れるため、ナビとレシートスキャン画面への入口が2つになる重複を避ける）
+- **ナビゲーション（PC・スマホ共通の下部固定タブバー）**: トップレベル画面5つ（ホーム・取引記録・カテゴリ管理・家族構成管理・AIアドバイス。[画面一覧](../specs/overview.md#画面一覧)参照）への切り替えを、自前の下部固定タブバーコンポーネント1つで統一する（ナビ項目5つ。アイコン+ラベルを常時表示し、アクティブ項目のみ背景ハイライトで強調。[common-components.mdの採用した方向性](../design/common-components.md#採用した方向性)参照）。個人開発・家族利用というスケールを踏まえ、PC専用にshadcn/uiの`Sidebar`コンポーネントを別途実装・保守するコストより、1コンポーネントで統一する実装のシンプルさを優先した（PCでは画面いっぱいに伸ばさず中央寄せで幅を制限し、間延びを抑える。具体的にはメインコンテンツと同じ最大幅[1200px]に揃え、タブ間の余白とクリック領域を確保する）。専用の「設定」項目・「レシート」専用項目は追加しない（家族構成管理・カテゴリ管理がアプリ固有の設定に該当し、アカウント自体の設定はClerkの`UserButton`のドロップダウンで足りるため。レシート読み取りは後述のFABから入れるため、ナビとレシートスキャン画面への入口が2つになる重複を避ける）
   - 画面名「ダッシュボード」はユーザー向け表示ラベルとしては「ホーム」に変更（[画面一覧](../specs/overview.md#画面一覧)参照）。ルートパス（`(app)/dashboard`）・機能名としての「ダッシュボード」呼称（[dashboard.md](../specs/features/dashboard.md)等）はそのまま維持し、表示ラベルのみの変更とする
+  - 同様に、画面名「本格的アドバイス」はユーザー向け表示ラベルとしては「AIアドバイス」に変更（2026-07-25）。ルートパス（`(app)/advice`）・機能名・`featureCode`としての「本格的アドバイス」（`DETAILED_ADVICE`）呼称はそのまま維持し、表示ラベルのみの変更とする（[style-guide.mdの用語ルール](../design/style-guide.md#用語命名の固定ルール)参照）
+  - アイコンはlucide-reactでカバーできないもの（Stitchモックアップに合わせたMaterial Symbols系）をSVGR経由でコンポーネント化して使用（詳細は[frontend-conventions.mdのアイコン](./decisions/frontend-conventions.md#アイコン)参照）
 - **「+取引を追加」フローティングボタン（PC・スマホ共通）**: 取引登録は最も頻度の高い操作のため、ナビゲーション経由を介さず即座に[取引登録フォーム](../specs/features/transactions.md)へ遷移できるよう、下部タブバーに重ねて全画面共通でフローティング表示する。タップすると「手入力で記録」「レシートで記録」の2択をその場に表示する（[レシート読み取り](../specs/features/ai.md#1-レシート読み取り自動入力receipt_scan)はこのアプリの強みであり、手入力と同じ優先度で見せるため。下部タブに専用項目を追加する案もあったが、遷移先（`/transactions/new`の単発フォーム）が手入力と同じであり入口が二重になるだけのため採用しない）。「手入力で記録」を選ぶと通常通り単発フォームを開き、「レシートで記録」を選ぶと同じフォームをレシート読み取りUIを開いた状態で表示する
 
 ## 関連ドキュメント

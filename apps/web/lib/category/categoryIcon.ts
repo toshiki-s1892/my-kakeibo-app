@@ -1,0 +1,37 @@
+import { CATEGORY_ICON_CODE, type CategoryIconCode } from '@repo/common';
+import {
+  Briefcase,
+  Gamepad,
+  Gift,
+  GraduationCap,
+  Home,
+  Lightbulb,
+  Shield,
+  Shirt,
+  ShoppingBasket,
+  Smartphone,
+  Stethoscope,
+  Tag,
+  Train,
+  Utensils,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react';
+
+export const CATEGORY_ICON_COMPONENT: Record<CategoryIconCode, LucideIcon> = {
+  [CATEGORY_ICON_CODE.UTENSILS]: Utensils,
+  [CATEGORY_ICON_CODE.TRAIN]: Train,
+  [CATEGORY_ICON_CODE.HOME]: Home,
+  [CATEGORY_ICON_CODE.LIGHTBULB]: Lightbulb,
+  [CATEGORY_ICON_CODE.SMARTPHONE]: Smartphone,
+  [CATEGORY_ICON_CODE.STETHOSCOPE]: Stethoscope,
+  [CATEGORY_ICON_CODE.SHIRT]: Shirt,
+  [CATEGORY_ICON_CODE.SHOPPING_BASKET]: ShoppingBasket,
+  [CATEGORY_ICON_CODE.GAMEPAD]: Gamepad,
+  [CATEGORY_ICON_CODE.GRADUATION_CAP]: GraduationCap,
+  [CATEGORY_ICON_CODE.SHIELD]: Shield,
+  [CATEGORY_ICON_CODE.TAG]: Tag,
+  [CATEGORY_ICON_CODE.WALLET]: Wallet,
+  [CATEGORY_ICON_CODE.GIFT]: Gift,
+  [CATEGORY_ICON_CODE.BRIEFCASE]: Briefcase,
+};

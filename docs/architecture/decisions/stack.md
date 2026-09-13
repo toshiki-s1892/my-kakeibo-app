@@ -26,6 +26,14 @@
 
 ---
 
+## Node.jsバージョン方針: Active LTS（2026-08-30決定）
+
+ローカル開発・CI・ビルド時に使う Node.js は Active LTS を採用する（2026-08-30時点で Node 24）。ルートの `package.json` の `engines.node` を `>=24` として明示する。
+
+**本番の実行環境（Vercel Edge Runtime）とは別軸の方針であることに注意:** `apps/web/app/api/[...route]/route.ts` は `export const runtime = 'edge'` で Vercel Edge Runtime 上で動作しており、Node.js そのものではない。そのため `engines.node` の指定は Edge Runtime での API 互換性（`Map.groupBy` 等の新しい言語機能が使えるか）を保証するものではなく、あくまでローカル開発・CI・ビルド時に使う Node.js バージョンの下限を示すもの。
+
+---
+
 ## フレームワーク: Next.js 16 (App Router) + React 19
 
 **採用理由:**
@@ -35,6 +43,10 @@
 - Vercel へのデプロイとの相性が最良
 
 **懸念点:** Next.js 16 + React 19 は最新バージョンのため、エコシステムの一部ライブラリが未対応の可能性がある。ライブラリ追加時は都度確認が必要。
+
+**2026-07-25発見: `next.config.ts`の`webpack()`オプションはTurbopackでは無視される** — Next.js 16はデフォルトでTurbopackを使うため、SVGR等のwebpackローダーを追加する目的で`webpack()`関数を書いても適用されず、むしろ`⨯ ERROR: This build is using Turbopack, with a webpack config and no turbopack config.`でビルドエラーになる。同等の設定はTurbopack専用の`turbopack.rules`で行う必要がある（具体例は[frontend-conventions.mdのアイコン](./frontend-conventions.md#アイコン)参照）。
+
+**2026-07-23対応: `16.2.0`→`16.2.11`へパッチ更新（Turbopackのメモリリーク対策）** — `next dev`（Turbopack）が長時間の開発セッションでヒープ使用量が無制限に増加し、`FATAL ERROR: ... JavaScript heap out of memory`でクラッシュする事象が発生した。Turbopackの既知の問題（[vercel/next.js#66326](https://github.com/vercel/next.js/issues/66326)・[#73921](https://github.com/vercel/next.js/issues/73921)・[#81161](https://github.com/vercel/next.js/issues/81161)）で、変更のないファイルを再コンパイルしないためのキャッシュがメモリ上で無制限に膨張する設計上のトレードオフが原因。根本対策となるメモリeviction機能（メモリ使用量最大90%削減）は[Next.js 16.3](https://nextjs.org/blog/next-16-3-turbopack)で追加されるが、2026-07-23時点で16.3は`preview`段階（`16.3.0-preview.8`）で安定版未リリースのため採用を見送り、16.2系の最新パッチ（`16.2.11`）へ更新するに留めた。16.3安定版のリリース後、改めてアップグレードを検討する。
 
 ---
 
@@ -62,6 +74,8 @@
 
 実装方針（ルート構成・認証ミドルウェアの適用方法等）は[api-conventions.md](./api-conventions.md)を参照。
 
+**再検討した代替案（不採用）: tRPC（2026-09-03）** — 「TypeScriptモノレポで、フロントエンドの利用者が自分（内部）のみ・外部APIコンシューマなし」という条件は、tRPC公式ドキュメント・oRPC公式・実務記事が繰り返し「tRPCを選ぶべき」と名指しする典型条件であり、このプロジェクトの状況に一致する。npm週次DL・GitHub star共にtRPCが`@hono/zod-openapi`を上回るなど、コードファーストRPCへの支持材料自体は存在する。それでも不採用としたのは、`api-conventions.md`に既に確立された規約（`createRoute`前提のルート・スキーマ・レスポンスのファイル分割、`defaultHook`/`onError`によるエラー整形、`AuthEnv`によるuserId伝播、`hono-rate-limiter`によるレート制限方針）を全面的に書き直すコストが、外部APIコンシューマの提供予定がない現時点で得られる利益（tRPCのOpenAPI出力機能`@trpc/openapi`はまだalpha版であり、移行後もorval・Swagger UIに相当する成果物を維持する保証がない）に見合わないため。将来、外部APIコンシューマの提供が具体的な要件になった時点で改めて検討する。
+
 ---
 
 ## ORM + DB: Drizzle ORM + Turso（分散 SQLite）
@@ -76,7 +90,7 @@
 
 **再検討した代替案（不採用）:** UUID生成の簡潔さ（`gen_random_uuid()`がネイティブにある）を理由にNeon（サーバーレスPostgres）への移行を検討したが、(1) Tursoを選定した当初の「グローバル分散による低レイテンシ」という利点はこのアプリの個人・家族利用規模では元々不要、(2) 「無料運用を維持し続けたい」という要件に対し、Tursoの行数ベースの無料枠（月5億行読み取り・5GBストレージ）の方がNeonのコンピュート時間ベースの無料枠より制限に達しにくく安全、という理由でTursoを維持する結論とした。
 
-DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts`の役割分担）は[api-conventions.md](./api-conventions.md#dbクライアントの分離)を参照。
+DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts`の役割分担）は[api-conventions.md](./api-conventions.md#dbクライアントの分離)を参照。`packages/db`の`package.json`は`exports`にメインエントリ（`.`）を持たず、`./schema`サブパスのみを公開する（2026-09-04、Edge Runtimeでのdotenvクラッシュを機に変更。経緯は同ページ参照）。
 
 **マイグレーション運用: `drizzle-kit generate` + `migrate`（2026-07-20に`push`運用から変更）**
 
@@ -108,7 +122,7 @@ DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts
 **影響範囲:**
 
 - `packages/db/src/schema/*.ts` の全テーブルのPK定義変更（マイグレーション必要）
-- `server/shared/id-schema.ts` の `IdParamSchema`・`IdResponseSchema` を `z.coerce.number()` から UUID文字列のバリデーションに変更
+- 各機能の`:id`パスパラメータ検証スキーマ（[api-conventions.mdの命名規則](./api-conventions.md#honoルートの実装方針)により機能ごとに個別定義。例: `categoryIdRequestSchema`）を `z.coerce.number()` から UUID文字列のバリデーションに変更
 - 既存実装（プロフィール設定機能）への影響を実装時に確認する
 
 ---

@@ -19,13 +19,13 @@
 
 **テストの粒度:**
 
-| 層                                     | 対象                                                                                         | DB                                        |
-| -------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| 単体（Vitest, node環境）               | `packages/common`の純粋ロジック（メッセージ生成関数等）                                      | 使わない                                  |
-| 単体（Vitest, node環境）               | `features/*/schema/*FormSchema.ts`等のzodスキーマ（バリデーション分岐）                      | 使わない                                  |
-| 単体（Vitest, jsdom環境）              | `features/*/hooks/use{Feature}Form.ts`等のフックロジック（ステータス分岐・リダイレクト判断） | 使わない（orval mock + MSWでAPIをモック） |
-| 結合（Vitest + Honoの`app.request()`） | `server/routes/{feature名}/handler.ts`（APIエンドポイント単位）                              | 使う（ローカルSQLite）                    |
-| E2E（Playwright）                      | 複数画面をまたぐ主要フロー                                                                   | 使う（ローカルSQLite）                    |
+| 層                                     | 対象                                                                                             | DB                                        |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| 単体（Vitest, node環境）               | `packages/common`の純粋ロジック（メッセージ生成関数等）                                          | 使わない                                  |
+| 単体（Vitest, node環境）               | `app/features/*/schema/*FormSchema.ts`等のzodスキーマ（バリデーション分岐）                      | 使わない                                  |
+| 単体（Vitest, jsdom環境）              | `app/features/*/hooks/use{Feature}Form.ts`等のフックロジック（ステータス分岐・リダイレクト判断） | 使わない（orval mock + MSWでAPIをモック） |
+| 結合（Vitest + Honoの`app.request()`） | `server/routes/{feature名}/handler.ts`（APIエンドポイント単位）                                  | 使う（ローカルSQLite）                    |
+| E2E（Playwright）                      | 複数画面をまたぐ主要フロー                                                                       | 使う（ローカルSQLite）                    |
 
 E2Eは最初から全分岐を網羅せず、正常系（ゴールデンパス）1本（例: サインイン→プロフィールセットアップ→ダッシュボード遷移）から開始する。異常系・バリデーションエラーなどの分岐は単体テストでカバーする。
 
@@ -65,6 +65,8 @@ E2Eの対象外（単体・結合テストで担保）: カテゴリ追加/編�
 | `server`（結合）               | APIエンドポイント単位の入出力（リクエスト→DB→レスポンス、ステータスコード）                                                                | フロント側のフォームの挙動                                    |
 | `e2e`                          | 画面をまたいだ遷移・結合動作（正常系1本から開始）                                                                                          | 各層の異常系の網羅（単体テストで担保済み）                    |
 
+**IDORの再発防止テストを必須化する（2026-08-23決定）:** `:id`パスパラメータを持つ全エンドポイント（GET/PUT/DELETE）の`server`層テストに、「別ユーザーが所有するリソースのidを指定すると404になる」ケースを1件以上含める（403ではなく404を採用する理由は[security.mdのIDOR対策](./security.md#idor不正な直接オブジェクト参照対策)参照）。この規約は所有者チェックの実装漏れをテストで機械的に検出するためのもの。
+
 **`schema`層はメッセージの「選択」まで検証する（2026-07-13決定、当初の「期待値をメッセージ生成関数で作るのは自明な検証なので書かない」という規定を置き換え）:**
 
 - 期待値は`common`の定数・関数への**参照**で書く（`expect(issue.message).toBe(requiredMessage)`・`toBe(maxLengthMessage(50))`）。これは文言の正しさの検証ではなく（それは`common`のテストがハードコード文字列で担保済み）、「どのフィールドに・どの条件で・どのメッセージ関数をどの引数で配線したか」という**選択の検証**であり、`minLengthMessage(1)`への配線ミスや引数の書き間違いを捕まえられる。`common`＝文言、`schema`＝フィールド・条件・メッセージ選択、という分担で重複なく契約全体をカバーする
@@ -88,18 +90,18 @@ E2Eの対象外（単体・結合テストで担保）: カテゴリ追加/編�
 
 上記の通り環境（node/jsdom）・前処理（Clerkモック・SQLite migrate・MSWセットアップ）が層ごとに異なるため、`apps/web/vitest.config.ts`内でVitestの`projects`機能（モノレポ・複数環境向けの標準構成）を使い、`server`・`hooks`・`schema`の3プロジェクトに分割する。1つの`vitest.config.ts`に環境分岐ロジックを埋め込む方法は取らない。`packages/common`は別パッケージのため、この`projects`には含めず独立した`vitest.config.ts`を持つ。
 
-| project  | environment | 用途・setupFiles                                              |
-| -------- | ----------- | ------------------------------------------------------------- |
-| `server` | `node`      | `server/routes`の結合テスト（Clerkモック・SQLite migrate）    |
-| `hooks`  | `jsdom`     | `features/*/hooks/`のフックテスト（MSWの`server.listen()`等） |
-| `schema` | `node`      | `features/*/schema/`のバリデーション分岐テスト（DOM不要）     |
+| project  | environment | 用途・setupFiles                                                         |
+| -------- | ----------- | ------------------------------------------------------------------------ |
+| `server` | `node`      | `server/routes`・`server/lib`の結合テスト（Clerkモック・SQLite migrate） |
+| `hooks`  | `jsdom`     | `app/features/*/hooks/`のフックテスト（MSWの`server.listen()`等）        |
+| `schema` | `node`      | `app/features/*/schema/`のバリデーション分岐テスト（DOM不要）            |
 
 **テストファイルの配置規約（`__tests__`サブディレクトリ）:**
 
 テストファイルは対象ファイルと同じディレクトリ直下に`__tests__/`を作り、その中に置く（feature直下に1つの`__tests__`へ集約する方式は不採用）。
 
 ```
-features/profile-setup/
+app/features/profile-setup/
 ├── hooks/
 │   ├── useProfileSetupForm.ts
 │   └── __tests__/useProfileSetupForm.test.ts
@@ -108,13 +110,14 @@ features/profile-setup/
     └── __tests__/profileSetupFormSchema.test.ts
 
 packages/common/src/
-├── error-message.ts
-└── __tests__/error-message.test.ts
+├── validation-message.ts
+├── api-error-message.ts
+└── __tests__/validation-message.test.ts
 ```
 
-サブディレクトリごとに分ける理由は、`projects`の`include`をディレクトリ単位（`features/*/hooks/__tests__/*.test.ts`等）で機械的に指定できるため。feature直下にまとめる方式だと、`hooks`用・`schema`用のテストを`include`で振り分ける際にファイル名の命名規則（`use*.test.ts`か`*FormSchema.test.ts`か）に依存することになり、命名を誤ると意図しないprojectに紛れ込むリスクがある。
+サブディレクトリごとに分ける理由は、`projects`の`include`をディレクトリ単位（`app/features/*/hooks/__tests__/*.test.ts`等）で機械的に指定できるため。feature直下にまとめる方式だと、`hooks`用・`schema`用のテストを`include`で振り分ける際にファイル名の命名規則（`use*.test.ts`か`*FormSchema.test.ts`か）に依存することになり、命名を誤ると意図しないprojectに紛れ込むリスクがある。
 
-**テストの記述規約（2026-07-12決定、`packages/common/src/__tests__/error-message.test.ts`が最初の適用例）:**
+**テストの記述規約（2026-07-12決定、`packages/common/src/__tests__/validation-message.test.ts`が最初の適用例）:**
 
 - `describe`にはコード上の識別子（関数名・スキーマ名）を**英語のまま**書く（`describe('minLengthMessage', ...)`）。翻訳や`Tests`のような接尾辞は付けない。実行結果からコードへ検索で辿れることを優先する
 - ファイル全体を括る外側の`describe`は作らない。vitestの実行結果にはファイルパスが必ず表示されるため冗長になる。実行結果が「ファイルパス > 関数名 > 振る舞い」の3階層で読める形にする
@@ -124,7 +127,7 @@ packages/common/src/
   - 型解決のため各パッケージのtsconfigに`vitest/globals`を追加する（`packages/common`は`"types": ["bun", "vitest/globals"]`、`apps/web`は`types`未指定だと全`@types/*`自動読込のため`"types": ["node", "vitest/globals"]`と`node`の併記が必要な点に注意）
 - テスト名はその層の責務に合わせる。例えば`common`のメッセージ生成関数のテストは関数の入出力の契約（「渡した◯◯を含むメッセージを返す」）を書き、「入力時に表示されるメッセージ」のような呼び出し側（スキーマ・フォーム）の責務は書かない（その振る舞いは`schema`層のテスト名に書く）
 
-**schema層テストの記述パターン（2026-07-13決定、`features/profile-setup/schema/__tests__/profileSetupFormSchema.test.ts`が最初の適用例）:**
+**schema層テストの記述パターン（2026-07-13決定、`app/features/profile-setup/schema/__tests__/profileSetupFormSchema.test.ts`が最初の適用例）:**
 
 - ネストする`describe`は**フィールド単位**（`describe('name', ...)`のようにコード上の識別子を英語のまま）で切る。「正常系/準正常系/異常系」のようなラベルは使わない（「〜なら〜になる」形式のテスト名が既に条件と結果を表しており、分類ラベルは情報を足さないため）
 - **`validValues`パターン**: 全フィールドがバリデーションを通る基準値オブジェクトを1つ定義し、各テストで`{ ...validValues, name: '' }`のように**1フィールドだけ上書き**する（エラーが常に1件になり、どのフィールドの検証か明確になる）。基準値はスキーマの材料定数（`GENDER_OPTIONS`等）から導出せず**リテラル**で書く（定数から作ると検証が自己参照になり、定数の破壊的変更に気づけない。`'MALE'`等の値は外部契約なのでテストが固定する価値がある）
@@ -134,7 +137,7 @@ packages/common/src/
 - テスト名は入力事実に合わせて狭く書く（50文字ちょうどを入力するテストを「50文字**以内**なら」と書かない。範囲を主張すると試していないケースまで検証済みに読めるため）
 - 境界テストで範囲の両端を押さえたら、中間の代表値テストは置かない（新しい情報を足さないため）
 
-**hooks層テストの記述パターン（2026-07-19決定、`features/profile-setup/hooks/__tests__/useProfileSetupForm.test.tsx`が最初の適用例）:**
+**hooks層テストの記述パターン（2026-07-19決定、`app/features/profile-setup/hooks/__tests__/useProfileSetupForm.test.tsx`が最初の適用例）:**
 
 - **describeグループ化**: 外側の`describe`はフック名（英語識別子、記述規約どおり）。その内側に`describe('正常系')`・`describe('異常系')`の**日本語分類ラベル**を置いてテストをグループ化する。schema層の「ラベル不使用」規定との違いは切り口の有無: schema層はフィールド単位という自然な切り口があるが、hooks層はAPIレスポンスのシナリオが並列に並ぶため、分類ラベルが「どれが正常系か」の迷いを解消する情報になる。グループ用describeには**ラベル以外を持たせない**（`beforeEach`・共有変数を置かない。ネスト批判（Kent C. Dodds "[Avoid Nesting When You're Testing](https://kentcdodds.com/blog/avoid-nesting-when-youre-testing)"）の主眼はスコープ追跡の困難さであり、ラベル専用なら該当しない）
 - **並び順**: 正常系 → 異常系（実装の分岐順に合わせる: 400 → その他ステータス → `onError`）→ ガード（そもそも送信されないケース）。テスト間の独立性（`resetHandlers`・`clearMocks`）が前提のため、並び順は純粋に読み手のための編集
@@ -173,7 +176,7 @@ export default defineConfig({
         test: {
           name: 'server',
           environment: 'node',
-          include: ['server/routes/**/__tests__/*.test.{ts,tsx}'],
+          include: ['server/{routes,lib}/**/__tests__/*.test.{ts,tsx}'],
         },
       },
       {
@@ -181,7 +184,7 @@ export default defineConfig({
         test: {
           name: 'hooks',
           environment: 'jsdom',
-          include: ['features/*/hooks/__tests__/*.test.{ts,tsx}'],
+          include: ['app/features/*/hooks/__tests__/*.test.{ts,tsx}'],
           setupFiles: ['./vitest.setup.hooks.ts'], // MSWの起動・停止（下記「フックテストのMSWモック方針」参照）
         },
       },
@@ -190,7 +193,7 @@ export default defineConfig({
         test: {
           name: 'schema',
           environment: 'node',
-          include: ['features/*/schema/__tests__/*.test.{ts,tsx}'],
+          include: ['app/features/*/schema/__tests__/*.test.{ts,tsx}'],
         },
       },
     ],
@@ -211,12 +214,74 @@ orvalの`mock: true`設定により`lib/api/generated/{feature}/{feature}.msw.ts
 - 成功パス（2xx）: orval生成の`get{Feature}Mock()`をグローバルセットアップで登録し、そのまま使う
 - 異常系（400/401/500等）: orval生成コードでは表現できないため、テストごとに`server.use(http.post('*/api/xxx', () => HttpResponse.json({...}, { status: 400 })))`のように生のMSWハンドラを個別に書く。テスト数が少ない段階では共通化せず、各テストファイルに直接記述する（重複が3件以上になった時点で共通化を検討する）
 
-**MSWセットアップのファイル構成（2026-07-18実装）:**
+**MSWセットアップのファイル構成（2026-07-18実装、2026-08-01改訂）:**
 
-役割の変わる理由が異なるため2ファイルに分離する。
+役割の変わる理由が異なるため、セットアップ（vitest.setup.hooks.ts）とハンドラー定義（mocks/）を分離する。
 
-- `apps/web/mocks/handlers.ts`: 全featureのorval生成ハンドラを集約する（`export const handlers = [...getProfileMock()]`）。feature追加時はこの配列に足すだけで、セットアップファイルは触らない。ディレクトリ名はMSW公式の`mocks/`慣例に従う（テスト専用ではなく、将来コンポーネントカタログのブラウザ側`setupWorker`からも同じ`handlers`を再利用できる配置）
+- `apps/web/mocks/handlers/index.ts`: 各featureのハンドラーを集約する（`export const handlers = [...getProfileMock(), categoriesHandler]`）。feature追加時はこの配列に足すだけで、セットアップファイルは触らない。ディレクトリ名はMSW公式の`mocks/`慣例に従う（テスト専用ではなく、将来コンポーネントカタログのブラウザ側`setupWorker`からも同じ`handlers`を再利用できる配置）
+- `apps/web/mocks/handlers/{feature}.ts`: そのfeatureのモックに独自ロジックが必要な場合だけ作成する（例: `categories.ts`）。デフォルトの自動生成モック（`getXxxMock()`）をそのまま使うだけのfeatureは個別ファイルを作らず、`index.ts`から直接orval生成の`get{Feature}Mock()`を呼ぶ。MSW公式の[Structuring handlers](https://mswjs.io/docs/best-practices/structuring-handlers)が推奨する「まず単一ファイル、複雑になったfeatureだけドメイン別ファイルに分割する」段階的方針に従う
 - `apps/web/vitest.setup.hooks.ts`: `setupServer(...handlers)`とライフサイクル管理（`beforeAll`で`listen`・`afterEach`で`resetHandlers`・`afterAll`で`close`）のみを持つ。`server`をexportし、異常系テストの`server.use()`による一時上書きに使う（`afterEach`の`resetHandlers`が上書きを毎回デフォルトに戻し、テスト間の独立性を保つ）
+
+**クエリパラメータに応じた動的モックの書き方（2026-08-01実装、2026-08-24改訂、categoriesが最初の適用例）:**
+
+orval生成の`get{Operation}MockHandler`は`overrideResponse`に関数を渡すと、リクエスト情報を受け取って動的にレスポンスを組み立てられる（`Category[]`のような値だけでなく、`(info) => Category[]`という関数も型として許容されている）。クエリパラメータは`new URL(info.request.url).searchParams`で読み取る（[MSW公式のQuery parameters](https://mswjs.io/docs/http/intercepting-requests/query-parameters)と同じ書き方）。
+
+**制約: `overrideResponse`はステータス200固定。** 生成コードは常に`HttpResponse.json(overrideResponseの結果, { status: 200 })`でラップするため（`overrideResponse`の型も`GetApiCategories200`という成功時のデータ型のみを許容し、`HttpResponse`は渡せない）、500等のエラーレスポンスをこのヘルパー経由で表現することはできない。エラーを含めて分岐したい場合は、`getGetApiCategoriesMockHandler`を使わず`http.get`・`HttpResponse`（`msw`から直接import）で生ハンドラを書き、成功時も含めた全分岐を自前で`HttpResponse.json(...)`にラップする。
+
+```ts
+export const categoriesHandler = http.get('*/api/categories', async (info) => {
+  const url = new URL(info.request.url);
+  // ブラウザのアドレスバー（ページURL）を見る。MSWのresolverはメインスレッド（アプリのJSランタイム）で実行されるため、
+  // window.location・localStorage等のブラウザAPIに直接アクセスできる（info.request.urlは実際にfetchされる/api/categories自体のURLで別物）
+  const mockState = new URL(window.location.href).searchParams.get('mockState');
+
+  if (mockState === 'error') {
+    return HttpResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
+
+  const typeCode =
+    Number(url.searchParams.get('typeCode')) === CATEGORY_TYPE.INCOME
+      ? CATEGORY_TYPE.INCOME
+      : CATEGORY_TYPE.EXPENSE;
+
+  const withConsistentTypeCode = (
+    data: ReturnType<typeof getGetApiCategoriesResponseMock>['categories'][number]
+  ) => ({
+    ...data,
+    typeCode,
+    parentId: null,
+    children: data.children.map((child) => ({ ...child, typeCode, parentId: data.id })),
+  });
+
+  const categories = getGetApiCategoriesResponseMock().categories.map(withConsistentTypeCode);
+  while (categories.length < MIN_SAMPLE_CATEGORIES) {
+    categories.push(...getGetApiCategoriesResponseMock().categories.map(withConsistentTypeCode));
+  }
+
+  if (mockState === 'empty') return HttpResponse.json({ categories: [] });
+  if (mockState === 'noChildren') {
+    return HttpResponse.json({ categories: categories.map((c) => ({ ...c, children: [] })) });
+  }
+
+  return HttpResponse.json({ categories });
+});
+```
+
+- `Number(...) === CATEGORY_TYPE.INCOME ? ... : ...`で絞り込む（`===`の等価判定でないと`CategoryTypeCode`のリテラル型`1 | 2`に絞り込まれず型エラーになる。想定外の値はEXPENSEにフォールバックする、エラーにはしない。フロント側は`CATEGORY_TYPE`経由でしか`typeCode`を送らないため実際に想定外の値が来ることはなく、実APIのzodバリデーションが担うべき検証をモック側で肩代わりする必要はない）
+- 件数を`while`+`push(...)`で下限保証する（`if`によるスキップだと、fakerの生成数が足りない回だけ画面確認・テストで想定したデータ（親子関係など）が現れない不安定さが残るため）
+- `withConsistentTypeCode`で`parentId`・`typeCode`をfakerのランダム値から仕様どおりの値に上書きする（GET `/api/categories`はネスト構造で返すため、orval生成の`getGetApiCategoriesResponseMock()`はトップレベル要素の`children`に子カテゴリを含めてランダム生成するが、各フィールドは独立して生成されるため、子の`parentId`が実際の親の`id`と一致しない・親子で`typeCode`が食い違う、といった不整合が起きる。トップレベルは`parentId: null`固定、`children`の各要素は`parentId`をその親の`id`に固定し、`typeCode`もトップレベルと揃える）
+
+**ブラウザでの手動モックシナリオ切り替え（`mockState`、2026-08-24実装）:**
+
+開発中にブラウザで空データ・子カテゴリなし・エラーの見た目を確認したい需要から、`categories.ts`のハンドラは上記の通り`window.location`の`mockState`クエリパラメータを見て応答を出し分ける。ブラウザのアドレスバーで`http://localhost:3001/categories?mockState=empty`のようにURLを直接書き換えてリロードするだけで反映される（値変更後はTanStack Queryのキャッシュを介さないよう毎回リロードする運用。値は`empty`・`noChildren`・`error`の3種、それ以外はデフォルトの正常系データにフォールバックする。バリデーション・警告は無し）。
+
+この仕組みは現状`categories.ts`専用であり、共通ヘルパーへの切り出しはしていない（[Structuring handlers](https://mswjs.io/docs/best-practices/structuring-handlers)の「まず単一ファイル、複雑になったfeatureだけ分割する」段階的方針、およびこのファイル冒頭の重複3件ルールに従う）。2件目のfeature（取引記録等の一覧画面）で同様の切り替えが必要になったタイミングで、共通化の要否を再検討する。
+
+**ブラウザでのMSW起動（開発サーバー、`NEXT_PUBLIC_API_MOCKING=enabled`時）:**
+
+`app/providers.tsx`で`worker.start()`のPromiseを待たずに`children`をレンダリングすると、Service Worker登録完了前にTanStack Queryの初回fetchが発火し、モックされず実サーバー（未実装のスタブ等）に素通りしてしまうレースコンディションが発生する（[MSW公式ドキュメント](https://mswjs.io/docs/integrations/browser)が明記している既知の問題）。ハードリロードでも再現しうる（タイミング次第で毎回発生しうるため）。
+
+対処として、`worker.start()`が解決するまで`children`のレンダリング自体を止める（`mockingReady`のようなstateでガードする）。
 
 **結合テスト用DBの構成（2026-07-20実装）:**
 
@@ -303,19 +368,22 @@ Gemini実装時は、プロンプト組み立て・レスポンス解析など�
 Clerk公式も「サードパーティライブラリの内部実装に対する結合テストは書かない」ことを推奨しているため、`@clerk/hono`モジュール自体を`vi.mock()`で丸ごとモックする（`clerkMiddleware()`は`app.use('/profile/*', clerkMiddleware())`で実際にマウントされているため、`getAuth`だけでなく`clerkMiddleware`もモックが必要）。
 
 ```ts
-const { mockUserId } = vi.hoisted(() => ({ mockUserId: { current: 'test-user-id' } }));
+// 変数名はmockClerkId（getAuthが返すのはClerkの生ID。DBの内部userIdとは別物）
+const { mockClerkId } = vi.hoisted(() => ({ mockClerkId: { current: 'test-clerk-id' } }));
 
 vi.mock('@clerk/hono', () => ({
   clerkMiddleware: () => async (_c: Context, next: Next) => {
     await next(); // 認証チェックをスキップして素通しするだけ
   },
-  getAuth: () => ({ userId: mockUserId.current }),
+  getAuth: () => ({ userId: mockClerkId.current }), // userIdキーはClerkのgetAuth自体の戻り値の形なので変更しない
 }));
 ```
 
 `clerkAuth`コンテキスト変数への格納（`c.set`/`c.get`）は行わない。`@clerk/hono`（2026-07時点 0.1.33）の型定義では`clerkAuth`変数の型が`GetAuthFnNoRequest`（関数）であり、認証情報オブジェクトを直接`c.set`すると型エラーになる。`clerkMiddleware`・`getAuth`はどちらも自前のモックなので、本物の内部実装（コンテキスト経由の受け渡し）を模倣する必要はなく、`getAuth`が`mockUserId`を直接参照すれば同じ契約（`getAuth(c)`が`{ userId }`を返す）を満たせる。
 
 `vi.hoisted()`で保持した変数をテストごとに書き換えることで、複数ユーザーが絡むテストケース（家族構成など）にも対応できる。Clerkの「Testing Tokens」（`@clerk/testing`）はブラウザ経由の実サインインフローでボット検知を回避する仕組みであり、`app.request()`で直接ハンドラを叩くこの層には不要。
+
+`server/lib/auth.ts`の`authMiddleware`・`requireUserMiddleware`（それぞれ`c.set('clerkId', ...)`・`c.set('userId', ...)`する自前のミドルウェア）はどちらもモック対象ではない。`getAuth`のモックさえ差し替えれば、両ミドルウェアともモックなしでそのままテストアプリに組み込める（詳細は[api-conventions.mdのuserIdの取得方法](./api-conventions.md#useridの取得方法2026-08-29決定)参照）。ただし`requireUserMiddleware`はDBにアクセスするミドルウェアのため、テストファイルでの読み込み方に注意が必要（[静的importが`vi.resetModules()`より先に評価される落とし穴](#静的importがviresetmodulesより先に評価される落とし穴2026-09-06判明)参照）。
 
 このモックブロックは**各テストファイルの冒頭に置く（2026-07-20決定）**。`vi.mock`はテストファイル単位で巻き上げられる仕様のため、セットアップファイルや共通関数への抽出は効かない。上記コード例をコピーして使い、ファイル間の重複は技術制約上の必要コストと割り切る。
 
@@ -326,30 +394,35 @@ vi.mock('@clerk/hono', () => ({
 - **テスト対象のアプリは、本番の`app/api/[...route]/route.ts`を再利用せず、テストに必要な最小構成をファイル内で組み立てる**（`basePath`・`swaggerUI`等の無関係な設定を含めないため）。`profileRouter`は`db`と同じ理由（モジュールシングルトン）で`beforeEach`内での動的importが必要。`basePath('/api')`は含めない（サブルーター単体のテストに無関係な設定のため、[各層の検証責務](#各層の検証責務重複を避ける)の対象外）。ただし`app.onError(errorHandler)`は本番と同じ配線を再現するため必要（異常系のレスポンス整形はこのハンドラの責務のため）
 - **異常系はフィールド単位のバリデーション網羅をしない**（schema層で担保済みのため重複）。server層固有の価値がある2種類に絞る: (1) バリデーション失敗→`validationErrorHook`→`errorHandler`→`ErrorResponseSchema`形式という**配線全体**が動くかの確認（フィールドは代表で1つ欠けさせれば十分）、(2) DB制約違反・トランザクションの原子性など**schema層では検証できないサーバー内部の挙動**（例: ユニーク制約違反時に500が返り、かつ中途半端なデータが残っていないこと）
 - 401（未認証）は対象外: `proxy.ts`の`auth.protect()`がセッショントークン認証失敗時に404を返すため、`schema.ts`の401レスポンス定義は実質到達不能（[profile-setup.md](../../tasks/features/profile-setup.md)の既知の課題）。到達しない分岐はテストしない
+- **1ファイルに複数のハンドラをexportする場合は、関数名でもう一段describeを切る**（2026-09-13決定、`categoryPinHandler.test.ts`が最初の適用例）: `categoryPinHandler.ts`のように`putCategoryPinHandler`・`deleteCategoryPinHandler`など複数の独立したハンドラ関数を1ファイルにまとめている場合、外側の`describe`（ファイル共通のセットアップ用）の直下にハンドラ関数名のdescribeをもう一段はさんでから`正常系`/`異常系`をネストする（`describe('categoryPinHandler') > describe('putCategoryPinHandler') > describe('正常系')`）。関数ごとに独立した検証対象なので、`正常系`/`異常系`に直接複数ハンドラのテストを混在させるとテスト名だけでは対象が分かりにくくなるため
+- **同一ファイル内でのArrangeヘルパーはoverrides方式にする**（2026-09-13決定、`categoryPinHandler.test.ts`が最初の適用例）: 同じテーブルへのinsert処理がファイル内で3回以上似た形で繰り返される場合、`insertCategory(overrides: Partial<typeof categoriesTable.$inferInsert> = {})`のように基準値オブジェクトに`{ ...overrides }`を展開して一部だけ上書きできるヘルパーを切り出す。各テストは変更したいフィールドだけを渡せばよく、「このテストが基準値と何を変えているか」が一目で分かる。`expect`はヘルパーに含めず各テストに残す（AHA原則、既存の「Arrangeヘルパーは2ファイル目が必要になった時点で共通化する」はファイル**間**の重複についての規定であり、これはファイル**内**の重複についての規定として区別する）
 
 ```ts
+// authMiddlewareはDBにアクセスしないミドルウェアなので静的importのままで問題ない
+// （requireUserMiddlewareを使うルートは動的importが必須。理由は次節参照）
+import { AuthEnv, authMiddleware } from '@/server/lib/auth';
 import { errorHandler } from '@/server/shared/error-handler';
 import { clerkMiddleware } from '@clerk/hono';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { usersTable } from '@repo/db/schema';
 import { Context, Next } from 'hono';
 
-const { mockUserId } = vi.hoisted(() => ({ mockUserId: { current: 'test-user-id' } }));
+const { mockClerkId } = vi.hoisted(() => ({ mockClerkId: { current: 'test-clerk-id' } }));
 
 vi.mock('@clerk/hono', () => ({
   clerkMiddleware: () => async (_c: Context, next: Next) => {
     await next();
   },
-  getAuth: () => ({ userId: mockUserId.current }),
+  getAuth: () => ({ userId: mockClerkId.current }),
 }));
 
 describe('profileHandler', () => {
-  let app: OpenAPIHono;
+  let app: OpenAPIHono<AuthEnv>;
 
   beforeEach(async () => {
     const profileRouter = (await import('@/server/routes/profile')).default;
-    app = new OpenAPIHono();
-    app.use('/profile/*', clerkMiddleware());
+    app = new OpenAPIHono<AuthEnv>();
+    app.use('/profile/*', clerkMiddleware(), authMiddleware);
     app.route('/profile', profileRouter);
     app.onError(errorHandler);
   });
@@ -415,4 +488,20 @@ describe('profileHandler', () => {
 
 `app.request()`の使い方は[Hono公式: Testing Helper](https://hono.dev/docs/guides/testing)参照。POSTボディは`JSON.stringify()`し`Content-Type: application/json`ヘッダを明示する。
 
+**`app.request()`のオプションは省略しない（2026-09-13決定）:** `init`（`RequestInit`）の`method`は未指定だと`GET`扱いになるが、可読性のため明示的に書く（`app.request('/categories?typeCode=1', { method: 'GET' })`）。テストを読んだ時点でHTTPメソッドが一目で分かることを優先する。既存ファイルで省略している箇所は、次にそのファイルを編集するタイミングで揃える。
+
 異常系テストでは`errorHandler`内の`console.error`（想定外エラーのログ出力）が実行時に出力されるが、これは意図的に発生させた500エラーが正しくログ記録されている証跡であり、テスト失敗ではない。
+
+**静的importが`vi.resetModules()`より先に評価される落とし穴（2026-09-06判明）:** `categoryListHandler.test.ts`に`requireUserMiddleware`を追加した際、`SQLITE_ERROR: no such table: users`（`server/lib/auth.ts`内のDBクエリで発生）に遭遇した。原因は、テストファイル冒頭の`import { authMiddleware, requireUserMiddleware } from '@/server/lib/auth'`が、テストファイル読み込み時（＝最初の`beforeEach`・`vi.resetModules()`が走るより前）に一度だけ評価される点にあった。`auth.ts`は内部で`db.ts`を静的importしているため、この最初の評価で「テスト用DBに切り替わる前の、一番最初のDB接続」を`auth.ts`のモジュールスコープに固定してしまい、以降`vi.resetModules()`で新しいDBに切り替えても`auth.ts`側の`db`参照は更新されない。`authMiddleware`単体（DBにアクセスしない）ではこの問題は顕在化せず、DBにアクセスする`requireUserMiddleware`を追加して初めて表面化した。
+
+対策は、`categoriesRouter`と同様に`auth.ts`からのimportも`beforeEach`内の動的importに変えること。
+
+```ts
+beforeEach(async () => {
+  const { authMiddleware, requireUserMiddleware } = await import('@/server/lib/auth');
+  const categoriesRouter = (await import('@/server/routes/categories')).default;
+  // ...
+});
+```
+
+**原則:** DBに依存するモジュール（`db.ts`を静的importしているモジュール）を扱うテストファイルでは、そのモジュールの値・関数のimportは必ず`beforeEach`内の動的importにする。型のみのimport（`import type { UserEnv } from '@/server/lib/auth'`等）は型がコンパイル時に消えるため対象外で、静的importのままでよい。

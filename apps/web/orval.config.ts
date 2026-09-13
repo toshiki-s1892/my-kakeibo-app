@@ -9,6 +9,15 @@ export default defineConfig({
       schemas: './lib/api/generated/models',
       httpClient: 'fetch',
       mock: true,
+      override: {
+        mutator: {
+          path: './lib/api/custom-fetch.ts',
+          name: 'customFetch',
+        },
+        fetch: {
+          includeHttpResponseReturnType: false,
+        },
+      },
     },
     input: {
       target: 'http://localhost:3001/api/doc',

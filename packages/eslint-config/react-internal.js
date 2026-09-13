@@ -36,6 +36,7 @@ export const config = [
       'react/react-in-jsx-scope': 'off',
       // TypeScript の型注釈が PropTypes の役割を果たすため不要
       'react/prop-types': 'off',
+      'react/no-danger': 'error',
     },
   },
 ];

@@ -1,5 +1,6 @@
+import { Footer } from '@/components/Footer';
+import { Header } from '@/components/Header';
 import { isSetupComplete } from '@/server/lib/onboarding';
-import { UserButton } from '@clerk/nextjs';
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 
@@ -25,10 +26,9 @@ export default async function AppLayout({
 
   return (
     <>
-      <header className="flex justify-end items-center p-4 gap-4 h-16">
-        <UserButton />
-      </header>
-      {children}
+      <Header />
+      <main className="pt-5 pb-20">{children}</main>
+      <Footer />
     </>
   );
 }

@@ -38,7 +38,7 @@ my-kakeibo-app/
 ### 前提条件
 
 - Bun >= 1.3.13
-- Node.js >= 18
+- Node.js >= 24
 
 ### 環境変数
 

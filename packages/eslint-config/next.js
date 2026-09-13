@@ -5,6 +5,7 @@ import pluginReact from 'eslint-plugin-react';
 import pluginReactHooks from 'eslint-plugin-react-hooks';
 import { globalIgnores } from 'eslint/config';
 import globals from 'globals';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
 import tseslint from 'typescript-eslint';
 import { config as baseConfig } from './base.js';
 
@@ -43,6 +44,7 @@ export const nextJsConfig = [
       ...pluginNext.configs['core-web-vitals'].rules,
     },
   },
+  jsxA11y.flatConfigs.recommended,
   {
     plugins: {
       'react-hooks': pluginReactHooks,
@@ -54,6 +56,7 @@ export const nextJsConfig = [
       'react/react-in-jsx-scope': 'off',
       // TypeScript の型注釈が PropTypes の役割を果たすため不要
       'react/prop-types': 'off',
+      'react/no-danger': 'error',
     },
   },
 ];

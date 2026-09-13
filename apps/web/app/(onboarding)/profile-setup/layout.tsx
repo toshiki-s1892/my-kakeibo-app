@@ -1,3 +1,4 @@
+import { Header } from '@/components/Header';
 import { isSetupComplete } from '@/server/lib/onboarding';
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
@@ -17,8 +18,13 @@ export default async function OnboardingLayout({
 
   const setupComplete = await isSetupComplete(userId);
   if (setupComplete) {
-    redirect('/dashboard');
+    // redirect('/dashboard');
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <Header />
+      <main>{children}</main>
+    </>
+  );
 }

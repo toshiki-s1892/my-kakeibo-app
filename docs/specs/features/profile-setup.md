@@ -42,11 +42,11 @@ Next.js の `proxy.ts`（Edge Runtime）ではなく `(app)/layout.tsx`（Node.j
 
 ## スキーマ設計（3層）
 
-| 層                      | ファイル                           | 役割                                        |
-| ----------------------- | ---------------------------------- | ------------------------------------------- |
-| ① フォームスキーマ      | `features/profile-setup/schema.ts` | フロントのフォームバリデーション            |
-| ② APIリクエストスキーマ | `server/routes/profile/schema.ts`  | Honoルートの入口バリデーション・OpenAPI定義 |
-| ③ DB操作                | `server/routes/profile/handler.ts` | drizzle-zodを使ってDBに保存                 |
+| 層                      | ファイル                           | 役割                                                                                                                                               |
+| ----------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ① フォームスキーマ      | `features/profile-setup/schema.ts` | フロントのフォームバリデーション                                                                                                                   |
+| ② APIリクエストスキーマ | `server/routes/profile/schema.ts`  | Honoルートの入口バリデーション・OpenAPI定義                                                                                                        |
+| ③ DB操作                | `server/routes/profile/handler.ts` | ②で検証済みのボディを`.insert().values()`で直接保存（バリデーションはフロント・API入口の2層で完結させるため、DB操作層でのdrizzle-zod変換はしない） |
 
 ## APIエンドポイント
 

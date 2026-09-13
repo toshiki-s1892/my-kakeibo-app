@@ -20,46 +20,10 @@ import type {
   PostApiProfileSetupBody,
 } from '../models';
 
-export type postApiProfileSetupResponse204 = {
-  data: void;
-  status: 204;
-};
+import { customFetch } from '../../custom-fetch';
+import type { ErrorType } from '../../custom-fetch';
 
-export type postApiProfileSetupResponse400 = {
-  data: PostApiProfileSetup400;
-  status: 400;
-};
-
-export type postApiProfileSetupResponse401 = {
-  data: PostApiProfileSetup401;
-  status: 401;
-};
-
-export type postApiProfileSetupResponse409 = {
-  data: PostApiProfileSetup409;
-  status: 409;
-};
-
-export type postApiProfileSetupResponse500 = {
-  data: PostApiProfileSetup500;
-  status: 500;
-};
-
-export type postApiProfileSetupResponseSuccess = postApiProfileSetupResponse204 & {
-  headers: Headers;
-};
-export type postApiProfileSetupResponseError = (
-  | postApiProfileSetupResponse400
-  | postApiProfileSetupResponse401
-  | postApiProfileSetupResponse409
-  | postApiProfileSetupResponse500
-) & {
-  headers: Headers;
-};
-
-export type postApiProfileSetupResponse =
-  | postApiProfileSetupResponseSuccess
-  | postApiProfileSetupResponseError;
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 export const getPostApiProfileSetupUrl = () => {
   return `/api/profile/setup`;
@@ -72,26 +36,22 @@ export const getPostApiProfileSetupUrl = () => {
 export const postApiProfileSetup = async (
   postApiProfileSetupBody?: PostApiProfileSetupBody,
   options?: RequestInit
-): Promise<postApiProfileSetupResponse> => {
-  const res = await fetch(getPostApiProfileSetupUrl(), {
+): Promise<void> => {
+  return customFetch<void>(getPostApiProfileSetupUrl(), {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(postApiProfileSetupBody),
   });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: postApiProfileSetupResponse['data'] = body ? JSON.parse(body) : undefined;
-  return { data, status: res.status, headers: res.headers } as postApiProfileSetupResponse;
 };
 
 export const getPostApiProfileSetupMutationOptions = <
-  TError =
+  TError = ErrorType<
     | PostApiProfileSetup400
     | PostApiProfileSetup401
     | PostApiProfileSetup409
-    | PostApiProfileSetup500,
+    | PostApiProfileSetup500
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -100,7 +60,7 @@ export const getPostApiProfileSetupMutationOptions = <
     { data?: PostApiProfileSetupBody },
     TContext
   >;
-  fetch?: RequestInit;
+  request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof postApiProfileSetup>>,
   TError,
@@ -108,11 +68,11 @@ export const getPostApiProfileSetupMutationOptions = <
   TContext
 > => {
   const mutationKey = ['postApiProfileSetup'];
-  const { mutation: mutationOptions, fetch: fetchOptions } = options
+  const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, fetch: undefined };
+    : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof postApiProfileSetup>>,
@@ -120,7 +80,7 @@ export const getPostApiProfileSetupMutationOptions = <
   > = (props) => {
     const { data } = props ?? {};
 
-    return postApiProfileSetup(data, fetchOptions);
+    return postApiProfileSetup(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -130,21 +90,20 @@ export type PostApiProfileSetupMutationResult = NonNullable<
   Awaited<ReturnType<typeof postApiProfileSetup>>
 >;
 export type PostApiProfileSetupMutationBody = PostApiProfileSetupBody | undefined;
-export type PostApiProfileSetupMutationError =
-  | PostApiProfileSetup400
-  | PostApiProfileSetup401
-  | PostApiProfileSetup409
-  | PostApiProfileSetup500;
+export type PostApiProfileSetupMutationError = ErrorType<
+  PostApiProfileSetup400 | PostApiProfileSetup401 | PostApiProfileSetup409 | PostApiProfileSetup500
+>;
 
 /**
  * @summary ユーザープロフィールの作成
  */
 export const usePostApiProfileSetup = <
-  TError =
+  TError = ErrorType<
     | PostApiProfileSetup400
     | PostApiProfileSetup401
     | PostApiProfileSetup409
-    | PostApiProfileSetup500,
+    | PostApiProfileSetup500
+  >,
   TContext = unknown,
 >(
   options?: {
@@ -154,7 +113,7 @@ export const usePostApiProfileSetup = <
       { data?: PostApiProfileSetupBody },
       TContext
     >;
-    fetch?: RequestInit;
+    request?: SecondParameter<typeof customFetch>;
   },
   queryClient?: QueryClient
 ): UseMutationResult<
