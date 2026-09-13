@@ -1,4 +1,5 @@
 import { CategoryIcon } from '@/components/CategoryIcon';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/components/lib/utils';
 import { CategoryWithChildren } from '@/lib/api/generated/models';
 import { CATEGORY_COLOR_CLASS } from '@/lib/category/categoryColor';
@@ -20,19 +21,27 @@ export const CategoryRow = ({ category, categoryPin }: CategoryRowProps) => {
   const [isChildrenExpanded, setIsChildrenExpanded] = useState<boolean>(true);
   const Icon = CATEGORY_ICON_COMPONENT[category.icon];
   const PinIconComponent = category.isPinned ? PinFilledIcon : PinIcon;
+  const hasChildren = Boolean(category.children && category.children.length > 0);
 
   return (
     <li key={category.id} className="border-border border-b">
       <div className="flex w-full items-center gap-2 py-2">
         {/* 子カテゴリ表示/非表示切り替えトグル */}
-        <ChevronRight
-          className={cn(
-            'transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
-            isChildrenExpanded && 'rotate-90',
-            category.children && category.children.length > 0 ? 'visible' : 'invisible'
-          )}
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          disabled={!hasChildren}
+          className={hasChildren ? 'visible' : 'invisible'}
+          aria-label={isChildrenExpanded ? '子カテゴリーを閉じる' : '子カテゴリーを開く'}
           onClick={() => setIsChildrenExpanded(!isChildrenExpanded)}
-        />
+        >
+          <ChevronRight
+            className={cn(
+              'transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
+              isChildrenExpanded && 'rotate-90'
+            )}
+          />
+        </Button>
 
         {/* カテゴリーアイコン */}
         <CategoryIcon icon={Icon} className={CATEGORY_COLOR_CLASS[category.color]} />
@@ -42,18 +51,21 @@ export const CategoryRow = ({ category, categoryPin }: CategoryRowProps) => {
 
         {/* カテゴリーピン留め切り替えアイコン（支出のみ） */}
         {category.typeCode === CATEGORY_TYPE.EXPENSE && (
-          <PinIconComponent
-            className={cn(
-              'ml-auto',
-              categoryPin.isPending ? 'pointer-events-none opacity-50' : 'cursor-pointer'
-            )}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="ml-auto"
+            disabled={categoryPin.isPending}
+            aria-label={category.isPinned ? 'ピン留めを解除する' : 'ピン留めする'}
             onClick={() => categoryPin.togglePin(category.id, !category.isPinned)}
-          />
+          >
+            <PinIconComponent />
+          </Button>
         )}
       </div>
 
       {/* 子カテゴリー */}
-      {category.children && category.children.length > 0 && isChildrenExpanded && (
+      {hasChildren && isChildrenExpanded && category.children && (
         <ul className="ml-5">
           {category.children.map((childCategory, index, children) => {
             const ChildIcon = CATEGORY_ICON_COMPONENT[childCategory.icon];
