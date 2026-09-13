@@ -21,14 +21,13 @@ export const putCategoryPinRoute = createRoute({
       description: 'ピン留めに成功した場合',
     },
     400: {
-      description:
-        '指定されたカテゴリが存在しない・自分のカテゴリでない場合。またはINCOMEカテゴリまたは子カテゴリへのピン留めを試みた場合',
+      description: 'INCOMEカテゴリまたは子カテゴリへのピン留めを試みた場合',
       content: {
         'application/json': {
           schema: errorResponseSchema,
           examples: {
             targetInvalid: {
-              summary: '対象カテゴリが存在しない・ピン留め不可な場合',
+              summary: 'ピン留め不可なカテゴリを指定した場合',
               value: { message: categoryPinTargetInvalidMessage },
             },
           },
@@ -36,6 +35,20 @@ export const putCategoryPinRoute = createRoute({
       },
     },
     401: unauthorizedResponse,
+    404: {
+      description: '指定されたカテゴリが存在しない・自分のカテゴリでない場合',
+      content: {
+        'application/json': {
+          schema: errorResponseSchema,
+          examples: {
+            targetNotFound: {
+              summary: '対象カテゴリが存在しない場合',
+              value: { message: categoryPinTargetInvalidMessage },
+            },
+          },
+        },
+      },
+    },
     500: internalServerErrorResponse,
   },
 });
@@ -55,13 +68,13 @@ export const deleteCategoryPinRoute = createRoute({
     },
     400: {
       description:
-        '指定されたカテゴリが存在しない・自分のカテゴリでない場合。またはINCOMEカテゴリまたは子カテゴリを指定した場合（ピン留め不可のカテゴリのため）。または自分のEXPENSEカテゴリでピン留めが最後の1件の場合（解除すると0件になるため）',
+        'INCOMEカテゴリまたは子カテゴリを指定した場合（ピン留め不可のカテゴリのため）。または自分のEXPENSEカテゴリでピン留めが最後の1件の場合（解除すると0件になるため）',
       content: {
         'application/json': {
           schema: errorResponseSchema,
           examples: {
             targetInvalid: {
-              summary: '対象カテゴリが存在しない・ピン留め解除不可な場合',
+              summary: 'ピン留め解除不可なカテゴリを指定した場合',
               value: { message: categoryPinTargetInvalidMessage },
             },
             lastPinned: {
@@ -73,6 +86,20 @@ export const deleteCategoryPinRoute = createRoute({
       },
     },
     401: unauthorizedResponse,
+    404: {
+      description: '指定されたカテゴリが存在しない・自分のカテゴリでない場合',
+      content: {
+        'application/json': {
+          schema: errorResponseSchema,
+          examples: {
+            targetNotFound: {
+              summary: '対象カテゴリが存在しない場合',
+              value: { message: categoryPinTargetInvalidMessage },
+            },
+          },
+        },
+      },
+    },
     500: internalServerErrorResponse,
   },
 });
