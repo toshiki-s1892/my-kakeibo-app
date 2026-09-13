@@ -73,7 +73,7 @@ describe('categoryListHandler', () => {
         ])
         .returning();
 
-      const res = await app.request('/categories?typeCode=1');
+      const res = await app.request('/categories?typeCode=1', { method: 'GET' });
       const body = await res.json();
       expect(res.status).toBe(200);
       expect(body.categories).toHaveLength(2);
@@ -118,7 +118,7 @@ describe('categoryListHandler', () => {
         },
       ]);
 
-      const res = await app.request('/categories?typeCode=2');
+      const res = await app.request('/categories?typeCode=2', { method: 'GET' });
       expect(res.status).toBe(200);
     });
 
@@ -145,7 +145,7 @@ describe('categoryListHandler', () => {
         },
       ]);
 
-      const res = await app.request('/categories?typeCode=1');
+      const res = await app.request('/categories?typeCode=1', { method: 'GET' });
       const body = await res.json();
       expect(body.categories.length).toBe(1);
       expect(body.categories[0].name).toBe('食費');
@@ -174,7 +174,7 @@ describe('categoryListHandler', () => {
         },
       ]);
 
-      const res = await app.request('/categories?typeCode=1');
+      const res = await app.request('/categories?typeCode=1', { method: 'GET' });
       const body = await res.json();
       expect(body.categories[0].name).toBe('交通費');
     });
@@ -207,7 +207,7 @@ describe('categoryListHandler', () => {
         },
       ]);
 
-      const res = await app.request('/categories?typeCode=1');
+      const res = await app.request('/categories?typeCode=1', { method: 'GET' });
       const body = await res.json();
       expect(body.categories[0].name).toBe('交通費');
     });
@@ -247,7 +247,7 @@ describe('categoryListHandler', () => {
 
       if (!inserted) throw new Error('子カテゴリーの作成に失敗しました。');
 
-      const res = await app.request('/categories?typeCode=1');
+      const res = await app.request('/categories?typeCode=1', { method: 'GET' });
       const body = await res.json();
       expect(body.categories.length).toBe(1);
       expect(body.categories[0].children.length).toBe(1);
@@ -288,14 +288,14 @@ describe('categoryListHandler', () => {
         },
       ]);
 
-      const res = await app.request('/categories?typeCode=1');
+      const res = await app.request('/categories?typeCode=1', { method: 'GET' });
       const body = await res.json();
       expect(body.categories.length).toBe(1);
       expect(body.categories[0].name).toBe('交通費');
     });
 
     test('カテゴリーが存在しない場合は空配列が返る', async () => {
-      const res = await app.request('/categories?typeCode=1');
+      const res = await app.request('/categories?typeCode=1', { method: 'GET' });
       const body = await res.json();
 
       expect(body.categories).toEqual([]);
@@ -331,7 +331,7 @@ describe('categoryListHandler', () => {
         },
       ]);
 
-      const res = await app.request('/categories?typeCode=1');
+      const res = await app.request('/categories?typeCode=1', { method: 'GET' });
       const body = await res.json();
       expect(body.categories.length).toBe(1);
       expect(body.categories[0].name).toBe('交通費');
@@ -340,12 +340,12 @@ describe('categoryListHandler', () => {
 
   describe('異常系', () => {
     test('typeCodeが未指定の場合は400エラーが返る', async () => {
-      const res = await app.request('/categories');
+      const res = await app.request('/categories', { method: 'GET' });
       expect(res.status).toBe(400);
     });
 
     test('typeCodeが不正の値の場合は400エラーが返る', async () => {
-      const res = await app.request('/categories?typeCode=3');
+      const res = await app.request('/categories?typeCode=3', { method: 'GET' });
       expect(res.status).toBe(400);
     });
   });
