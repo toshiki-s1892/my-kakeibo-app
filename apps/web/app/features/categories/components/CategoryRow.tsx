@@ -57,7 +57,7 @@ export const CategoryRow = ({ category, categoryPin }: CategoryRowProps) => {
             className="ml-auto"
             disabled={categoryPin.isPending}
             aria-label={category.isPinned ? 'ピン留めを解除する' : 'ピン留めする'}
-            onClick={() => categoryPin.togglePin(category.id, !category.isPinned)}
+            onClick={() => categoryPin.togglePin(category.id, category.isPinned)}
           >
             <PinIconComponent className="size-6" />
           </Button>
