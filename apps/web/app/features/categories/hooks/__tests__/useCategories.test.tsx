@@ -23,4 +23,22 @@ describe('useCategories', () => {
       });
     });
   });
+
+  describe('異常系', () => {
+    test('カテゴリー取得APIが失敗すると、errorがセットされる', async () => {
+      server.use(
+        http.get('*/api/categories', () =>
+          HttpResponse.json({ message: 'テスト用エラーメッセージ' }, { status: 500 })
+        )
+      );
+
+      const { result } = renderHook(() => useCategories('EXPENSE'), {
+        wrapper: createQueryClientWrapper(),
+      });
+
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+    });
+  });
 });
