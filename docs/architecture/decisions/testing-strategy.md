@@ -65,7 +65,7 @@ E2Eの対象外（単体・結合テストで担保）: カテゴリ追加/編�
 | `server`（結合）               | APIエンドポイント単位の入出力（リクエスト→DB→レスポンス、ステータスコード）                                                                | フロント側のフォームの挙動                                    |
 | `e2e`                          | 画面をまたいだ遷移・結合動作（正常系1本から開始）                                                                                          | 各層の異常系の網羅（単体テストで担保済み）                    |
 
-**IDORの再発防止テストを必須化する（2026-08-23決定）:** `:id`パスパラメータを持つ全エンドポイント（GET/PUT/DELETE）の`server`層テストに、「別ユーザーが所有するリソースのidを指定すると403または404になる」ケースを1件以上含める。[security.mdのIDOR対策](./security.md#idor不正な直接オブジェクト参照対策)は所有者チェックの実装方針であり、この規約はその実装漏れをテストで機械的に検出するためのもの。
+**IDORの再発防止テストを必須化する（2026-08-23決定）:** `:id`パスパラメータを持つ全エンドポイント（GET/PUT/DELETE）の`server`層テストに、「別ユーザーが所有するリソースのidを指定すると404になる」ケースを1件以上含める（403ではなく404を採用する理由は[security.mdのIDOR対策](./security.md#idor不正な直接オブジェクト参照対策)参照）。この規約は所有者チェックの実装漏れをテストで機械的に検出するためのもの。
 
 **`schema`層はメッセージの「選択」まで検証する（2026-07-13決定、当初の「期待値をメッセージ生成関数で作るのは自明な検証なので書かない」という規定を置き換え）:**
 
@@ -394,6 +394,8 @@ vi.mock('@clerk/hono', () => ({
 - **テスト対象のアプリは、本番の`app/api/[...route]/route.ts`を再利用せず、テストに必要な最小構成をファイル内で組み立てる**（`basePath`・`swaggerUI`等の無関係な設定を含めないため）。`profileRouter`は`db`と同じ理由（モジュールシングルトン）で`beforeEach`内での動的importが必要。`basePath('/api')`は含めない（サブルーター単体のテストに無関係な設定のため、[各層の検証責務](#各層の検証責務重複を避ける)の対象外）。ただし`app.onError(errorHandler)`は本番と同じ配線を再現するため必要（異常系のレスポンス整形はこのハンドラの責務のため）
 - **異常系はフィールド単位のバリデーション網羅をしない**（schema層で担保済みのため重複）。server層固有の価値がある2種類に絞る: (1) バリデーション失敗→`validationErrorHook`→`errorHandler`→`ErrorResponseSchema`形式という**配線全体**が動くかの確認（フィールドは代表で1つ欠けさせれば十分）、(2) DB制約違反・トランザクションの原子性など**schema層では検証できないサーバー内部の挙動**（例: ユニーク制約違反時に500が返り、かつ中途半端なデータが残っていないこと）
 - 401（未認証）は対象外: `proxy.ts`の`auth.protect()`がセッショントークン認証失敗時に404を返すため、`schema.ts`の401レスポンス定義は実質到達不能（[profile-setup.md](../../tasks/features/profile-setup.md)の既知の課題）。到達しない分岐はテストしない
+- **1ファイルに複数のハンドラをexportする場合は、関数名でもう一段describeを切る**（2026-09-13決定、`categoryPinHandler.test.ts`が最初の適用例）: `categoryPinHandler.ts`のように`putCategoryPinHandler`・`deleteCategoryPinHandler`など複数の独立したハンドラ関数を1ファイルにまとめている場合、外側の`describe`（ファイル共通のセットアップ用）の直下にハンドラ関数名のdescribeをもう一段はさんでから`正常系`/`異常系`をネストする（`describe('categoryPinHandler') > describe('putCategoryPinHandler') > describe('正常系')`）。関数ごとに独立した検証対象なので、`正常系`/`異常系`に直接複数ハンドラのテストを混在させるとテスト名だけでは対象が分かりにくくなるため
+- **同一ファイル内でのArrangeヘルパーはoverrides方式にする**（2026-09-13決定、`categoryPinHandler.test.ts`が最初の適用例）: 同じテーブルへのinsert処理がファイル内で3回以上似た形で繰り返される場合、`insertCategory(overrides: Partial<typeof categoriesTable.$inferInsert> = {})`のように基準値オブジェクトに`{ ...overrides }`を展開して一部だけ上書きできるヘルパーを切り出す。各テストは変更したいフィールドだけを渡せばよく、「このテストが基準値と何を変えているか」が一目で分かる。`expect`はヘルパーに含めず各テストに残す（AHA原則、既存の「Arrangeヘルパーは2ファイル目が必要になった時点で共通化する」はファイル**間**の重複についての規定であり、これはファイル**内**の重複についての規定として区別する）
 
 ```ts
 // authMiddlewareはDBにアクセスしないミドルウェアなので静的importのままで問題ない
@@ -485,6 +487,8 @@ describe('profileHandler', () => {
 ```
 
 `app.request()`の使い方は[Hono公式: Testing Helper](https://hono.dev/docs/guides/testing)参照。POSTボディは`JSON.stringify()`し`Content-Type: application/json`ヘッダを明示する。
+
+**`app.request()`のオプションは省略しない（2026-09-13決定）:** `init`（`RequestInit`）の`method`は未指定だと`GET`扱いになるが、可読性のため明示的に書く（`app.request('/categories?typeCode=1', { method: 'GET' })`）。テストを読んだ時点でHTTPメソッドが一目で分かることを優先する。既存ファイルで省略している箇所は、次にそのファイルを編集するタイミングで揃える。
 
 異常系テストでは`errorHandler`内の`console.error`（想定外エラーのログ出力）が実行時に出力されるが、これは意図的に発生させた500エラーが正しくログ記録されている証跡であり、テスト失敗ではない。
 
