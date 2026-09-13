@@ -1,5 +1,5 @@
 'use client';
-import { navItems } from 'app/(app)/nav-items';
+import { navItems } from '../(app)/nav-items';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 

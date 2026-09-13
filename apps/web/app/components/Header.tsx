@@ -1,6 +1,6 @@
 'use client';
 import { UserButton } from '@clerk/nextjs';
-import { navItems } from 'app/(app)/nav-items';
+import { navItems } from '../(app)/nav-items';
 import { usePathname } from 'next/navigation';
 
 export const Header = () => {
