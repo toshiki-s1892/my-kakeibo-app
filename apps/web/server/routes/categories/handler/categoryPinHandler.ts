@@ -21,7 +21,11 @@ export const putCategoryPinHandler: RouteHandler<typeof putCategoryPinRoute, Use
 
   // 存在しない・自分のカテゴリでない場合は、対象の有無を第三者に漏らさないため404にする（IDORの再発防止対策）
   const [category] = await db
-    .select()
+    .select({
+      typeCode: categoriesTable.typeCode,
+      parentId: categoriesTable.parentId,
+      deletedAt: categoriesTable.deletedAt,
+    })
     .from(categoriesTable)
     .where(and(eq(categoriesTable.id, categoryId), eq(categoriesTable.userId, userId)));
 
