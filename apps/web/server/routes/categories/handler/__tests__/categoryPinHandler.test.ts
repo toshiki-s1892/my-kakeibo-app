@@ -37,7 +37,7 @@ describe('categoryPinHandler', () => {
     const { db } = await import('@/server/lib/db');
     const [user] = await db
       .insert(usersTable)
-      .values({ clerk_id: clerkId, regionCode: 13 })
+      .values({ clerkId: clerkId, regionCode: 13 })
       .returning();
 
     if (!user) throw new Error('テストユーザーの作成に失敗しました。');

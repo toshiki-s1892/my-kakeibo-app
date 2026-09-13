@@ -7,7 +7,7 @@ export const isSetupComplete = async (userId: string): Promise<boolean> => {
   const user = await db
     .select({ id: usersTable.id })
     .from(usersTable)
-    .where(eq(usersTable.clerk_id, userId));
+    .where(eq(usersTable.clerkId, userId));
 
   // ユーザーが存在するかどうかを返す
   return user.length > 0;

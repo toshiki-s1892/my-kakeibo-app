@@ -60,7 +60,7 @@ describe('requireUserMiddleware', () => {
       const { db } = await import('@/server/lib/db');
       const [user] = await db
         .insert(usersTable)
-        .values({ clerk_id: 'test-clerk-id', regionCode: 13 })
+        .values({ clerkId: 'test-clerk-id', regionCode: 13 })
         .returning({ id: usersTable.id });
 
       if (!user) throw new Error('テストユーザーの作成に失敗しました');

@@ -23,7 +23,7 @@ export const profileSetupHandler: RouteHandler<typeof createUserRoute, AuthEnv> 
       [user] = await tx
         .insert(usersTable)
         .values({
-          clerk_id: clerkId,
+          clerkId: clerkId,
           regionCode: body.regionCode,
         })
         .returning({ id: usersTable.id });

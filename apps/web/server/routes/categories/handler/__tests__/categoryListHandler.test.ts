@@ -36,7 +36,7 @@ describe('categoryListHandler', () => {
     const [user] = await db
       .insert(usersTable)
       .values({
-        clerk_id: mockClerkId.current,
+        clerkId: mockClerkId.current,
         regionCode: 13,
       })
       .returning({ id: usersTable.id });
@@ -305,7 +305,7 @@ describe('categoryListHandler', () => {
       const { db } = await import('@/server/lib/db');
       const [otherUser] = await db
         .insert(usersTable)
-        .values({ clerk_id: 'other-clerk-id', regionCode: 13 })
+        .values({ clerkId: 'other-clerk-id', regionCode: 13 })
         .returning({ id: usersTable.id });
 
       if (!otherUser) throw new Error('別ユーザーの作成に失敗しました');

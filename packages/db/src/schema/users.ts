@@ -8,7 +8,7 @@ export const usersTable = sqliteTable('users', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  clerk_id: text('clerk_id').unique().notNull(),
+  clerkId: text('clerk_id').unique().notNull(),
   regionCode: integer('region_code').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()

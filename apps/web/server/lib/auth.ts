@@ -32,7 +32,7 @@ export const requireUserMiddleware = createMiddleware<UserEnv>(async (c, next) =
   const [user] = await db
     .select({ id: usersTable.id })
     .from(usersTable)
-    .where(eq(usersTable.clerk_id, clerkId));
+    .where(eq(usersTable.clerkId, clerkId));
 
   if (!user) {
     return c.json({ message: unauthorizedErrorMessage }, HTTP_STATUS.UNAUTHORIZED);
