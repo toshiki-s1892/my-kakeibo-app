@@ -8,9 +8,12 @@ import {
   lastPinnedCategoryMessage,
 } from '@repo/common';
 import { categoriesTable } from '@repo/db/schema';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { deleteCategoryPinRoute, putCategoryPinRoute } from '../schema/categoryPinSchema';
+
+// EXPENSE側で維持しなければならないピン留めの最小件数
+const MIN_PINNED_CATEGORY_COUNT = 1;
 
 // ピン留め処理
 export const putCategoryPinHandler: RouteHandler<typeof putCategoryPinRoute, UserEnv> = async (
@@ -88,22 +91,34 @@ export const deleteCategoryPinHandler: RouteHandler<
     throw new HTTPException(HTTP_STATUS.BAD_REQUEST, { message: categoryPinTargetInvalidMessage });
   }
 
-  const pinnedCount = categories.filter(
-    (category) =>
-      category.typeCode === CATEGORY_TYPE.EXPENSE &&
-      category.parentId === null &&
-      category.deletedAt === null &&
-      category.isPinned
-  ).length;
-
-  if (category.isPinned && pinnedCount <= 1) {
-    throw new HTTPException(HTTP_STATUS.BAD_REQUEST, { message: lastPinnedCategoryMessage });
-  }
-
-  await db
+  // 件数チェックと更新を1つのSQLにまとめる（2段階だと同時リクエストで最後の1件ガードをすり抜けるため）
+  const [unpinnedCategory] = await db
     .update(categoriesTable)
     .set({ isPinned: false })
-    .where(and(eq(categoriesTable.userId, userId), eq(categoriesTable.id, categoryId)));
+    .where(
+      and(
+        eq(categoriesTable.userId, userId),
+        eq(categoriesTable.id, categoryId),
+        sql`(
+          ${categoriesTable.isPinned} = false
+          OR (
+            SELECT COUNT(*)
+            FROM ${categoriesTable}
+            WHERE
+              ${categoriesTable.userId} = ${userId}
+              AND ${categoriesTable.typeCode} = ${CATEGORY_TYPE.EXPENSE}
+              AND ${categoriesTable.parentId} IS NULL
+              AND ${categoriesTable.deletedAt} IS NULL
+              AND ${categoriesTable.isPinned} = true
+          ) > ${MIN_PINNED_CATEGORY_COUNT}
+        )`
+      )
+    )
+    .returning({ id: categoriesTable.id });
+
+  if (!unpinnedCategory) {
+    throw new HTTPException(HTTP_STATUS.BAD_REQUEST, { message: lastPinnedCategoryMessage });
+  }
 
   return c.body(null, HTTP_STATUS.NO_CONTENT);
 };
