@@ -2,6 +2,7 @@ import { jaJP } from '@clerk/localizations';
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { Toaster } from './components/ui/sonner';
 import './globals.css';
 import { Provider } from './providers';
 
@@ -31,6 +32,7 @@ export default function RootLayout({
         <Provider>
           <ClerkProvider localization={jaJP}>{children}</ClerkProvider>
         </Provider>
+        <Toaster />
       </body>
     </html>
   );
