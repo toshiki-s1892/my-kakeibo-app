@@ -23,6 +23,7 @@ import type {
 import type {
   DeleteApiCategoriesCategoryIdPin400,
   DeleteApiCategoriesCategoryIdPin401,
+  DeleteApiCategoriesCategoryIdPin404,
   DeleteApiCategoriesCategoryIdPin500,
   GetApiCategories200,
   GetApiCategories400,
@@ -31,6 +32,7 @@ import type {
   GetApiCategoriesParams,
   PutApiCategoriesCategoryIdPin400,
   PutApiCategoriesCategoryIdPin401,
+  PutApiCategoriesCategoryIdPin404,
   PutApiCategoriesCategoryIdPin500,
 } from '../models';
 
@@ -195,6 +197,7 @@ export const getPutApiCategoriesCategoryIdPinMutationOptions = <
   TError = ErrorType<
     | PutApiCategoriesCategoryIdPin400
     | PutApiCategoriesCategoryIdPin401
+    | PutApiCategoriesCategoryIdPin404
     | PutApiCategoriesCategoryIdPin500
   >,
   TContext = unknown,
@@ -238,6 +241,7 @@ export type PutApiCategoriesCategoryIdPinMutationResult = NonNullable<
 export type PutApiCategoriesCategoryIdPinMutationError = ErrorType<
   | PutApiCategoriesCategoryIdPin400
   | PutApiCategoriesCategoryIdPin401
+  | PutApiCategoriesCategoryIdPin404
   | PutApiCategoriesCategoryIdPin500
 >;
 
@@ -248,6 +252,7 @@ export const usePutApiCategoriesCategoryIdPin = <
   TError = ErrorType<
     | PutApiCategoriesCategoryIdPin400
     | PutApiCategoriesCategoryIdPin401
+    | PutApiCategoriesCategoryIdPin404
     | PutApiCategoriesCategoryIdPin500
   >,
   TContext = unknown,
@@ -292,6 +297,7 @@ export const getDeleteApiCategoriesCategoryIdPinMutationOptions = <
   TError = ErrorType<
     | DeleteApiCategoriesCategoryIdPin400
     | DeleteApiCategoriesCategoryIdPin401
+    | DeleteApiCategoriesCategoryIdPin404
     | DeleteApiCategoriesCategoryIdPin500
   >,
   TContext = unknown,
@@ -335,6 +341,7 @@ export type DeleteApiCategoriesCategoryIdPinMutationResult = NonNullable<
 export type DeleteApiCategoriesCategoryIdPinMutationError = ErrorType<
   | DeleteApiCategoriesCategoryIdPin400
   | DeleteApiCategoriesCategoryIdPin401
+  | DeleteApiCategoriesCategoryIdPin404
   | DeleteApiCategoriesCategoryIdPin500
 >;
 
@@ -345,6 +352,7 @@ export const useDeleteApiCategoriesCategoryIdPin = <
   TError = ErrorType<
     | DeleteApiCategoriesCategoryIdPin400
     | DeleteApiCategoriesCategoryIdPin401
+    | DeleteApiCategoriesCategoryIdPin404
     | DeleteApiCategoriesCategoryIdPin500
   >,
   TContext = unknown,
