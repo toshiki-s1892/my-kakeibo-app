@@ -30,7 +30,28 @@
 
 ローカル開発・CI・ビルド時に使う Node.js は Active LTS を採用する（2026-08-30時点で Node 24）。ルートの `package.json` の `engines.node` を `>=24` として明示する。
 
-**本番の実行環境（Vercel Edge Runtime）とは別軸の方針であることに注意:** `apps/web/app/api/[...route]/route.ts` は `export const runtime = 'edge'` で Vercel Edge Runtime 上で動作しており、Node.js そのものではない。そのため `engines.node` の指定は Edge Runtime での API 互換性（`Map.groupBy` 等の新しい言語機能が使えるか）を保証するものではなく、あくまでローカル開発・CI・ビルド時に使う Node.js バージョンの下限を示すもの。
+**本番の実行環境との関係（2026-09-19更新）:** [実行環境](#実行環境-vercel-nodejs-runtime2026-09-19決定)のとおり本番もNode.js runtimeで動くため、`engines.node`（`>=24`）はローカル開発・CI・ビルドだけでなく本番のNode.jsバージョンにも関係する。ただしVercelで実際に使われるNode.jsバージョンが`engines.node`と一致するかは**未確認**（[nodejs-runtime-migration.md](../../tasks/cross-cutting/nodejs-runtime-migration.md)で確認する）。
+
+---
+
+## 実行環境: Vercel Node.js runtime（2026-09-19決定）
+
+`apps/web/app/api/[...route]/route.ts`の`export const runtime = 'edge'`を削除し、VercelのNode.js runtime（Next.jsの既定）で動かす。
+
+**決定理由:**
+
+- Next.js公式が`runtime = 'edge'`を非推奨とし、「`runtime`のexportを削除する。Node.js runtimeが既定なので代わりの記述は不要」としている（[Edge Runtime Deprecated](https://nextjs.org/docs/messages/edge-runtime-deprecated)・[runtimeのリファレンス](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/runtime)）
+- Vercel公式が「パフォーマンスと信頼性のためedgeからNode.jsへの移行を推奨」し、「Next.js 16.3以降は`runtime = 'edge'`がサポートされない」としている（[Vercel: Edge Runtime](https://vercel.com/docs/functions/runtimes/edge)）。このプロジェクトのNext.jsは`16.2.11`固定のため今すぐ影響はないが、いずれ必要になる移行を先に済ませる
+- HonoはNext.jsのNode.js runtimeでの利用を想定している（[Hono: Next.js](https://hono.dev/docs/getting-started/nextjs)）。`@clerk/hono`の動作要件も「Node.js 20.9.0以上」（[README](https://github.com/clerk/javascript/blob/main/packages/hono/README.md)）
+- pino等のNode.js依存ライブラリや`node:crypto`が使えるようになり、ロガー（[security.md](./security.md#ログ出力の構造化基盤とセキュリティイベント記録2026-09-19更新)）や暗号化（[column-encryption.md](../../tasks/cross-cutting/column-encryption.md)）の実装の選択肢が広がる
+
+**影響:** `proxy.ts`は元々Node.js runtimeが既定（Next.js 16.0.0〜。[公式](https://nextjs.org/docs/app/api-reference/file-conventions/proxy)）のため変更なし。料金はVercelが「edgeもNode.jsもFluid compute・Active CPU課金」としており（[料金](https://vercel.com/docs/functions/usage-and-pricing)）、Hobbyの含有枠に収まるかは使用量次第で未確認。
+
+**未確認のリスク（2026-09-19時点。確認手順は[nodejs-runtime-migration.md](../../tasks/cross-cutting/nodejs-runtime-migration.md)）:**
+
+- **関数リージョン**: 新規プロジェクトの既定は`iad1`（米国東海岸。[Vercel: Regions](https://vercel.com/docs/functions/configuring-functions/region)）。edgeは「リクエストに最も近いリージョン」で動いていたため、何も設定しないと日本のユーザーには遅くなる恐れがある。DBの所在地の近く（東京は`hnd1`。Hobbyは単一リージョンのみ）に設定する
+- **`@libsql/client`**: `package.json`の`exports`条件により、edgeでは`web`版（HTTP）、Node.jsでは`node`版が読み込まれ、`node`版はネイティブ部品（`libsql`パッケージ）に依存する。Next.jsは`@libsql/client`・`libsql`をバンドル対象外の既定リストに入れているが（[serverExternalPackages](https://nextjs.org/docs/app/api-reference/config/next-config-js/serverExternalPackages)）、Vercelでのビルドと本番接続はPreviewでの実機確認が必要
+- **Fluid compute**: 2025-04-23以降の新規プロジェクトでは既定で有効（[Vercel: Fluid compute](https://vercel.com/docs/fluid-compute)）。このプロジェクトは2026-05開始だがダッシュボードで要確認。コールドスタートを軽減するバイトコードキャッシュは本番のみで、Previewの速度は本番の指標にならない
 
 ---
 
@@ -66,7 +87,7 @@
 
 **採用理由:**
 
-- Edge Runtime に対応しており、Vercel Edge Network で低レイテンシな API を実現できる
+- 特定のランタイムに依存せず、Node.js・Edge 等の複数ランタイムで動作する（現在は Vercel の Node.js runtime で動かす。[実行環境](#実行環境-vercel-nodejs-runtime2026-09-19決定)参照）
 - `@hono/zod-openapi` によりスキーマ定義と OpenAPI ドキュメント生成を一元管理できる
 - `@hono/clerk-auth` で Clerk 認証と簡単に統合できる
 
@@ -83,7 +104,7 @@
 **採用理由:**
 
 - Drizzle はスキーマを TypeScript で定義でき、Zod との連携（`drizzle-zod`）で DB 定義からバリデーションスキーマを自動生成できる
-- Turso は Edge Runtime に対応した分散 SQLite で、グローバルレプリケーションによる低レイテンシを実現できる
+- Turso は libsql クライアントが Node.js・Edge の両方に対応した分散 SQLite で、グローバルレプリケーションによる低レイテンシを実現できる（Node.js runtime では`node`版のクライアントが使われる点は[実行環境](#実行環境-vercel-nodejs-runtime2026-09-19決定)参照）
 - SQLite は小〜中規模アプリに十分な性能を持ち、インフラコストが低い
 
 **懸念点:** SQLite は書き込み並行性が低いため、同時書き込みが多い場面では PostgreSQL より劣る。ユーザー数が大幅に増えた場合は DB の移行を検討する必要がある。
@@ -111,7 +132,7 @@ DBクライアントの分離方針（`packages/db`と`apps/web/server/lib/db.ts
 - 連番IDをURLや`:id`パスパラメータにそのまま使うと、IDの大きさから「だいたい何件登録されているか」という業務情報が推測できてしまう。UUIDにすることでこれを避けられる
 - 「内部用の連番ID + 外部公開用UUID」のデュアルID方式も検討したが、内部結合の性能差はこのアプリの規模（個人・家族利用）では無視できるレベルのため、実装が複雑になるデュアルID方式は不採用とし、PK自体をUUIDにする方式（シンプル）を選んだ
 
-**前提として:** IDが推測困難であること自体はセキュリティ対策の主軸ではない（「隠すことによる安全」に頼らない）。**全エンドポイントで`user_id`の所有者チェックを必須とする**ことが本質的な対策であり、UUID化はその上での追加の防御層という位置付け（詳細は[security.md](./security.md#idor不正な直接オブジェクト参照対策)参照）。
+**前提として:** IDが推測困難であること自体はセキュリティ対策の主軸ではない（「隠すことによる安全」に頼らない）。**全エンドポイントで`user_id`の所有者チェックを必須とする**ことが本質的な対策であり、UUID化はその上での追加の防御層という位置付け（詳細は[security.md](./security.md#idor不正な直接オブジェクト参照対策cwe-639)参照）。
 
 **実装方法:** 各テーブルのDrizzleスキーマで `text('id').primaryKey().$defaultFn(() => crypto.randomUUID())` を使い、アプリケーション側でUUIDを生成する（Drizzle公式の`$defaultFn`機能。[ドキュメント](https://orm.drizzle.team/docs/column-types/sqlite)）。
 

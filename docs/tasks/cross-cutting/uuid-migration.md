@@ -8,4 +8,4 @@
 - [ ] 2. 上記に伴うマイグレーションを作成
 - [ ] 3. 各機能の`:id`パスパラメータ検証スキーマ（機能ごとに個別定義。例: `categoryIdRequestSchema`。[api-conventions.md](../../architecture/decisions/api-conventions.md#honoルートの実装方針)参照）を `z.coerce.number()` からUUID文字列のバリデーション（`z.uuid()`）に変更
 - [ ] 4. 既存実装（プロフィール設定機能: `server/routes/profile/handler.ts` 等）でID型に依存している箇所がないか確認・修正
-- [ ] 5. 全エンドポイントで所有者チェック（`WHERE id = :id AND user_id = auth.userId`）が入っていることを確認（[セキュリティ対応方針](../../architecture/decisions/security.md#idor不正な直接オブジェクト参照対策)）
+- [ ] 5. 全エンドポイントで所有者チェック（`WHERE id = :id AND user_id = auth.userId`）が入っていることを確認（[セキュリティ対応方針](../../architecture/decisions/security.md#idor不正な直接オブジェクト参照対策cwe-639)）

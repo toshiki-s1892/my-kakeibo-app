@@ -17,7 +17,7 @@ Hono + Zod OpenAPIを採用した理由は[stack.md](./stack.md#api-hono--zod-op
 - Swagger UI は `/api/ui`、OpenAPI スペックは `/api/doc` で公開する（認証不要）
 - Next.jsミドルウェア（`proxy.ts`）でページルーティングレベルの認証を行い、Honoミドルウェアでは実際のuserId取得・未認証時の401判定を担当する
 - エラーレスポンスは全ルートで共通スキーマ（`errorResponseSchema`）を使用する（詳細は[エラーレスポンス](#エラーレスポンス)参照）
-- **状態を変更する操作にGETを使わない**（一覧・詳細取得のみGET、作成・更新・削除・ピン留め等はPOST/PUT/DELETE）。Clerkのセッションcookieが`SameSite=Lax`であるためのCSRF対策として機能する（[security.mdのCSRF対策](./security.md#csrf対策2026-08-23決定確認事項)参照）。この規約を崩すと追加のCSRF対策が必要になる
+- **状態を変更する操作にGETを使わない**（一覧・詳細取得のみGET、作成・更新・削除・ピン留め等はPOST/PUT/DELETE）。Clerkのセッションcookieが`SameSite=Lax`であるためのCSRF対策として機能する（[security.mdのCSRF対策](./security.md#csrf対策cwe-3522026-08-23決定確認事項)参照）。この規約を崩すと追加のCSRF対策が必要になる
 - 共有スキーマ（複数ルートで使うもの）は `server/shared/` に配置する
   - `error/errorResponseSchema.ts`: `errorResponseSchema`
   - `error/errorResponses.ts`: 共通エラーレスポンス（詳細は[共通エラーレスポンスの再利用](#共通エラーレスポンスの再利用2026-09-04決定)参照）
@@ -185,7 +185,7 @@ const categories = parentRows.map((row) => ({
 ```
 
 - `parentId === null`の分岐で`continue`することで、以降のループ本体では`row.parentId`がTypeScriptにより自動的に非null（`string`）へ絞り込まれ、`!`による非null断定が不要になる
-- `Map.groupBy`（ES2024）は使わない。本番は`export const runtime = 'edge'`（Vercel Edge Runtime）で動作しており、新しい言語機能のサポート状況は[stack.mdのNode.jsバージョン方針](./stack.md#nodejsバージョン方針active-lts2026-08-30決定)が指摘する通りローカルのNode.jsバージョンとは別軸で確認が必要なため、事前検証の手間がない手動ループを優先する
+- `Map.groupBy`（ES2024）は使わない。本番はVercelのNode.js runtimeで動作するが、Vercelで実際に使われるNode.jsバージョンが`engines.node`（`>=24`）と一致するか未確認のため（[stack.mdのNode.jsバージョン方針](./stack.md#nodejsバージョン方針active-lts2026-08-30決定)・[nodejs-runtime-migration.md](../../tasks/cross-cutting/nodejs-runtime-migration.md)で確認する）、確認が取れるまでは事前検証の手間がない手動ループを優先する。確認後にこのルールを見直す
 - 列を絞った`select({...})`クエリ結果1件分の型は、Drizzle公式の`$inferSelect`／`InferSelectModel`（テーブル全体の型になり、選択した列と一致しない）ではなく、`type Row = (typeof queryResult)[number]`というTypeScript標準のIndexed Access Types（[公式Handbook](https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html)）でクエリ結果から直接取り出す
 
 ## リクエストボディサイズの上限（2026-08-23決定）
@@ -199,7 +199,7 @@ Vercelはプラットフォーム側で全リクエストボディを4.5MBに強
 - **認証済みエンドポイント全体**: ユーザー単位（`auth.userId`）で緩めの上限を設ける。IP単位にしない理由は、同一IPを複数ユーザーが共有するケース（オフィスWi-Fi等）を誤って巻き込まないため、また1ユーザーがIPを変えても制限を回避できないようにするため
 - **AIエンドポイント（レシート読み取り・アドバイス）**: 既存の日次上限（`ai_usage_logs`、[ai.md](../../specs/features/ai.md)）とは別に、ユーザー単位の短時間バースト制限を追加で重ねる（日次上限に達する前の連打でコスト・レイテンシが跳ねるのを防ぐため）
 - **Webhookエンドポイント（Clerkの`user.deleted`等）**: 未認証で受けるため、レート制限より署名検証（本命の防御）を優先する
-- 実装は[本アプリのAPI（`app/api/[...route]/route.ts`）が`export const runtime = 'edge'`のため](../overview.md)、サーバーレス関数をまたいだカウントが必要。Upstash Redis + `hono-rate-limiter`を使用し、`server/lib/rate-limit.ts`に薄いアダプタとして実装する（将来AWS等へ移行してもUpstashはREST APIのため接続先を変えずに使い続けられる）
+- 実装は、Vercel Functionsが複数のインスタンスにスケールしインスタンス間でメモリを共有しないため、関数をまたいだカウントが必要。Upstash Redis + `hono-rate-limiter`を使用し、`server/lib/rate-limit.ts`に薄いアダプタとして実装する（将来AWS等へ移行してもUpstashはREST APIのため接続先を変えずに使い続けられる）
 
 ## DBクライアントの分離
 

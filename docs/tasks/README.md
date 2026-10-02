@@ -24,13 +24,18 @@
 
 ## 横断タスク（[cross-cutting/](./cross-cutting/)）
 
-| 内容                                                     | ファイル                                               | 状態   |
-| -------------------------------------------------------- | ------------------------------------------------------ | ------ |
-| テストツール導入（Vitest/Playwright）                    | [testing-setup.md](./cross-cutting/testing-setup.md)   | 進行中 |
-| 開発ツール導入（Lefthook/CI/PR自動レビュー）             | [dev-tooling.md](./cross-cutting/dev-tooling.md)       | 未着手 |
-| ID設計のUUID化（全テーブル）                             | [uuid-migration.md](./cross-cutting/uuid-migration.md) | 未着手 |
-| `(app)`レイアウト（ヘッダー・下部タブバー・取引追加FAB） | [app-layout.md](./cross-cutting/app-layout.md)         | 進行中 |
-| `(auth)`レイアウト（ホームへ戻るリンク）                 | [auth-layout.md](./cross-cutting/auth-layout.md)       | 未着手 |
+| 内容                                                     | ファイル                                                                   | 状態   |
+| -------------------------------------------------------- | -------------------------------------------------------------------------- | ------ |
+| テストツール導入（Vitest/Playwright）                    | [testing-setup.md](./cross-cutting/testing-setup.md)                       | 進行中 |
+| 開発ツール導入（Lefthook/CI/PR自動レビュー）             | [dev-tooling.md](./cross-cutting/dev-tooling.md)                           | 未着手 |
+| ID設計のUUID化（全テーブル）                             | [uuid-migration.md](./cross-cutting/uuid-migration.md)                     | 未着手 |
+| `(app)`レイアウト（ヘッダー・下部タブバー・取引追加FAB） | [app-layout.md](./cross-cutting/app-layout.md)                             | 進行中 |
+| `(auth)`レイアウト（ホームへ戻るリンク）                 | [auth-layout.md](./cross-cutting/auth-layout.md)                           | 未着手 |
+| Node.js runtimeへの移行（edgeの廃止）                    | [nodejs-runtime-migration.md](./cross-cutting/nodejs-runtime-migration.md) | 進行中 |
+| セキュリティ強化（ヘッダー・CVE対策・SAST・ログ）        | [security-hardening.md](./cross-cutting/security-hardening.md)             | 進行中 |
+| 機微データの列暗号化                                     | [column-encryption.md](./cross-cutting/column-encryption.md)               | 未着手 |
+| 退会時の完全削除                                         | [account-deletion.md](./cross-cutting/account-deletion.md)                 | 未着手 |
+| セットアップ作業記録                                     | [setup.md](./cross-cutting/setup.md)                                       | 完了   |
 
 ## 技術的な実装規約
 

@@ -109,7 +109,7 @@ ai_advice_messages: id, sessionId, role(user/assistant), content, createdAt
   | 年齢: 本人の`birthday`から算出した具体年齢                       | -（アドバイスの精度を優先し、年代への丸めは行わない）                                |
   | 家族構成: 続柄・人数・各メンバーの`birthday`から算出した具体年齢 | 各メンバーの氏名（`family_members.name`）                                            |
 
-  取引先名・家族の氏名は[列暗号化の対象フィールド](../../architecture/decisions/security.md#機微データの列暗号化アプリ層暗号化2026-08-23決定)でもあり、そもそもプロンプト用に平文へ復号する経路を作らない。
+  取引先名・家族の氏名は[列暗号化の対象フィールド](../../architecture/decisions/security.md#機微データの列暗号化アプリ層暗号化cwe-3112026-08-23決定)でもあり、そもそもプロンプト用に平文へ復号する経路を作らない。
 
 - 応答は**SSE（`text/event-stream`）で逐次表示する**（Geminiの`generateContentStream`を使用）。長文になるため、一括表示だと待たされている感が強く、将来のチャット拡張（チャットUIは基本ストリーミング表示が前提）にも合わせやすい。ストリーム完了後、全文を`ai_advice_messages`にassistantメッセージとして1件保存する（チャンクごとのDB書き込みは行わない）
 - v1では追加質問の入力UIは作らない（1トピック=1往復のみ）。将来追加質問欄を実装する場合も、同じ`ai_advice_messages`に新しい行を追加するだけで対応できる
