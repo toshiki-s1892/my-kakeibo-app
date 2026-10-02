@@ -3,13 +3,8 @@
 @docs/specs/overview.md
 @docs/architecture/overview.md
 @docs/architecture/decisions/stack.md
-@docs/architecture/decisions/api-conventions.md
-@docs/architecture/decisions/frontend-conventions.md
 @docs/architecture/decisions/security.md
-@docs/architecture/decisions/testing-strategy.md
 @docs/architecture/decisions/dev-workflow.md
-@docs/architecture/decisions/design-docs-tooling.md
-@docs/architecture/database.md
 @docs/tasks/README.md
 @docs/tasks/cross-cutting/testing-setup.md
 @docs/tasks/cross-cutting/app-layout.md
@@ -17,8 +12,9 @@
 
 ## import の運用ルール
 
-- 上記の `@docs/` import のうち、`specs/features/` と `tasks/` 配下は**進行中の機能・タスクのファイルのみ**を import する（全機能を import するとコンテキストを圧迫するため）
-- 機能・タスクが完了したら import から外し、次に着手する機能のファイルに差し替える（ファイル自体は docs/ に残す）。この差し替えは `/update-docs` の対象に含む
+- 上記の `@docs/` import は、ファイルに関わらず判断基準として毎回必要なもの（プロダクト仕様・技術スタック・セキュリティ方針・開発フロー）と、現在進行中のタスクファイルに限定する
+- `specs/features/` と `tasks/` 配下は**進行中の機能・タスクのファイルのみ**を import する（全機能を import するとコンテキストを圧迫するため）。機能・タスクが完了したら import から外し、次に着手する機能のファイルに差し替える（ファイル自体は docs/ に残す）。この差し替えは `/update-docs` の対象に含む
+- 特定のディレクトリ・ファイルを触れたときだけ必要な規約（API・フロントエンド実装規約、テスト記述規約、DBスキーマ、design docsツール運用）は、CLAUDE.mdへの常時importではなく`.claude/rules/`の`paths:`frontmatterによるpath-scoped rulesで読み込む（2026-10-02決定）。`@docs/` importは内容に関わらずセッション起動時に毎回全文読み込まれ、コンテキストコストを削減しないため（公式ドキュメント[Claude Code: Memory](https://code.claude.com/docs/en/memory.md)で確認）。対して`.claude/rules/*.md`に`paths:`を指定したルールは、該当パターンに一致するファイルを実際に読んだときだけ読み込まれる。該当ルールは`.claude/rules/api-conventions.md`・`frontend-conventions.md`・`testing-strategy.md`・`database.md`・`design-docs-tooling.md`（各ファイルの本体は対応する`docs/`配下への1行`@import`のみで、内容の複製はしない）
 
 ## 作業ルール
 

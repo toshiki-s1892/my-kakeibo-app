@@ -33,7 +33,7 @@
 | `(auth)`レイアウト（ホームへ戻るリンク）                 | [auth-layout.md](./cross-cutting/auth-layout.md)                           | 未着手 |
 | Node.js runtimeへの移行（edgeの廃止）                    | [nodejs-runtime-migration.md](./cross-cutting/nodejs-runtime-migration.md) | 進行中 |
 | セキュリティ強化（ヘッダー・CVE対策・SAST・ログ）        | [security-hardening.md](./cross-cutting/security-hardening.md)             | 進行中 |
-| 機微データの列暗号化                                     | [column-encryption.md](./cross-cutting/column-encryption.md)               | 未着手 |
+| 機微データの列暗号化                                     | [column-encryption.md](./cross-cutting/column-encryption.md)               | 進行中 |
 | 退会時の完全削除                                         | [account-deletion.md](./cross-cutting/account-deletion.md)                 | 未着手 |
 | セットアップ作業記録                                     | [setup.md](./cross-cutting/setup.md)                                       | 完了   |
 
