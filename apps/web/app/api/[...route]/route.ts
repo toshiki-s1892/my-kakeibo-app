@@ -1,16 +1,19 @@
 import '@/lib/zod-locale';
 import { authMiddleware, requireUserMiddleware } from '@/server/lib/auth';
+import { requestLogger } from '@/server/lib/request-logger';
 import categoriesRouter from '@/server/routes/categories';
 import profileRouter from '@/server/routes/profile';
 import { errorHandler } from '@/server/shared/error-handler';
 import { clerkMiddleware } from '@clerk/hono';
 import { swaggerUI } from '@hono/swagger-ui';
 import { OpenAPIHono } from '@hono/zod-openapi';
+import { requestId } from 'hono/request-id';
 import { handle } from 'hono/vercel';
-export const runtime = 'edge';
 
 const app = new OpenAPIHono().basePath('/api');
 
+app.use(requestId());
+app.use(requestLogger);
 app.use('/profile/*', clerkMiddleware(), authMiddleware);
 app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware);
 
