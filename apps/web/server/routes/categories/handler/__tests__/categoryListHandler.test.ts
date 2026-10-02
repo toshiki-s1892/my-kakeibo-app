@@ -1,7 +1,5 @@
-import { UserEnv } from '@/server/lib/auth';
-import { errorHandler } from '@/server/shared/error-handler';
+import { createTestApp } from '@/server/test-utils/createTestApp';
 import { clerkMiddleware } from '@clerk/hono';
-import { OpenAPIHono } from '@hono/zod-openapi';
 import { CATEGORY_COLOR_CODE, CATEGORY_ICON_CODE, CATEGORY_TYPE } from '@repo/common';
 import { categoriesTable, usersTable } from '@repo/db/schema';
 import { Context, Next } from 'hono';
@@ -21,16 +19,15 @@ vi.mock('@clerk/hono', () => ({
 }));
 
 describe('categoryListHandler', () => {
-  let app: OpenAPIHono<UserEnv>;
+  let app: ReturnType<typeof createTestApp>;
   let testUserId: string;
 
   beforeEach(async () => {
     const { authMiddleware, requireUserMiddleware } = await import('@/server/lib/auth');
     const categoriesRouter = (await import('@/server/routes/categories')).default;
-    app = new OpenAPIHono<UserEnv>();
+    app = createTestApp();
     app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware);
     app.route('/categories', categoriesRouter);
-    app.onError(errorHandler);
 
     const { db } = await import('@/server/lib/db');
     const [user] = await db

@@ -65,7 +65,7 @@ E2Eの対象外（単体・結合テストで担保）: カテゴリ追加/編�
 | `server`（結合）               | APIエンドポイント単位の入出力（リクエスト→DB→レスポンス、ステータスコード）                                                                | フロント側のフォームの挙動                                    |
 | `e2e`                          | 画面をまたいだ遷移・結合動作（正常系1本から開始）                                                                                          | 各層の異常系の網羅（単体テストで担保済み）                    |
 
-**IDORの再発防止テストを必須化する（2026-08-23決定）:** `:id`パスパラメータを持つ全エンドポイント（GET/PUT/DELETE）の`server`層テストに、「別ユーザーが所有するリソースのidを指定すると404になる」ケースを1件以上含める（403ではなく404を採用する理由は[security.mdのIDOR対策](./security.md#idor不正な直接オブジェクト参照対策)参照）。この規約は所有者チェックの実装漏れをテストで機械的に検出するためのもの。
+**IDORの再発防止テストを必須化する（2026-08-23決定）:** `:id`パスパラメータを持つ全エンドポイント（GET/PUT/DELETE）の`server`層テストに、「別ユーザーが所有するリソースのidを指定すると404になる」ケースを1件以上含める（403ではなく404を採用する理由は[security.mdのIDOR対策](./security.md#idor不正な直接オブジェクト参照対策cwe-639)参照）。この規約は所有者チェックの実装漏れをテストで機械的に検出するためのもの。
 
 **`schema`層はメッセージの「選択」まで検証する（2026-07-13決定、当初の「期待値をメッセージ生成関数で作るのは自明な検証なので書かない」という規定を置き換え）:**
 
@@ -170,13 +170,14 @@ export default defineConfig({
     globals: true, // describe/test/expect等をimport不要にする（記述規約の項を参照）
     passWithNoTests: true, // テストファイルが0件でもエラーにしない（実装が進むまでの暫定措置）
     clearMocks: true, // 各テスト前に全モックの呼び出し履歴をクリアする（実装は保持。上記「モックの呼び出し履歴」参照）
+    silent: 'passed-only', // 成功したテストのconsole出力を抑止する（下記「テスト中のログ出力の抑止」参照）
     projects: [
       {
         extends: true,
         test: {
           name: 'server',
           environment: 'node',
-          include: ['server/{routes,lib}/**/__tests__/*.test.{ts,tsx}'],
+          include: ['server/{routes,lib,shared}/**/__tests__/*.test.{ts,tsx}'],
         },
       },
       {
@@ -391,19 +392,32 @@ vi.mock('@clerk/hono', () => ({
 
 - **describeグループ化はhooks層と同一ルール**: 外側の`describe`はテスト対象の英語識別子（ハンドラ名等）、その内側に`describe('正常系')`・`describe('異常系')`の分類ラベルを置く（ステータスコード分岐のシナリオが並列に並ぶ構造がhooks層と同型のため。ラベル専用describeに`beforeEach`・共有変数を置かない規定も同じ）。分類の切り口の整理: 分岐を持つロジックの層（hooks・server）はラベルあり、入力検証の列挙であるschema層はフィールド単位describeでラベルなし
 - **テストデータ生成等のArrangeヘルパーは2ファイル目が必要になった時点で共通化する**（何が必要かはテスト内容依存で事前に確定できないため。全テスト無条件の前処理をセットアップファイルに置く判断とは区別する）
-- **テスト対象のアプリは、本番の`app/api/[...route]/route.ts`を再利用せず、テストに必要な最小構成をファイル内で組み立てる**（`basePath`・`swaggerUI`等の無関係な設定を含めないため）。`profileRouter`は`db`と同じ理由（モジュールシングルトン）で`beforeEach`内での動的importが必要。`basePath('/api')`は含めない（サブルーター単体のテストに無関係な設定のため、[各層の検証責務](#各層の検証責務重複を避ける)の対象外）。ただし`app.onError(errorHandler)`は本番と同じ配線を再現するため必要（異常系のレスポンス整形はこのハンドラの責務のため）
+- **テスト対象のアプリは、本番の`app/api/[...route]/route.ts`を再利用せず、テストに必要な最小構成を組み立てる**（`basePath`・`swaggerUI`等の無関係な設定を含めないため）。全テスト共通の配線（`requestId()`→`requestLogger`→`onError(errorHandler)`）は`createTestApp()`に集約し、認証ミドルウェアの`app.use()`と`app.route()`は各テストファイルで足す（下記「テスト用appの共通配線」参照）。`profileRouter`は`db`と同じ理由（モジュールシングルトン）で`beforeEach`内での動的importが必要。`basePath('/api')`は含めない（サブルーター単体のテストに無関係な設定のため、[各層の検証責務](#各層の検証責務重複を避ける)の対象外）。`onError(errorHandler)`は本番と同じ配線を再現するため必要（異常系のレスポンス整形はこのハンドラの責務のため）。`requestId()`・`requestLogger`は、`errorHandler`が`c.var.logger`を使うため必要
 - **異常系はフィールド単位のバリデーション網羅をしない**（schema層で担保済みのため重複）。server層固有の価値がある2種類に絞る: (1) バリデーション失敗→`validationErrorHook`→`errorHandler`→`ErrorResponseSchema`形式という**配線全体**が動くかの確認（フィールドは代表で1つ欠けさせれば十分）、(2) DB制約違反・トランザクションの原子性など**schema層では検証できないサーバー内部の挙動**（例: ユニーク制約違反時に500が返り、かつ中途半端なデータが残っていないこと）
 - 401（未認証）は対象外: `proxy.ts`の`auth.protect()`がセッショントークン認証失敗時に404を返すため、`schema.ts`の401レスポンス定義は実質到達不能（[profile-setup.md](../../tasks/features/profile-setup.md)の既知の課題）。到達しない分岐はテストしない
 - **1ファイルに複数のハンドラをexportする場合は、関数名でもう一段describeを切る**（2026-09-13決定、`categoryPinHandler.test.ts`が最初の適用例）: `categoryPinHandler.ts`のように`putCategoryPinHandler`・`deleteCategoryPinHandler`など複数の独立したハンドラ関数を1ファイルにまとめている場合、外側の`describe`（ファイル共通のセットアップ用）の直下にハンドラ関数名のdescribeをもう一段はさんでから`正常系`/`異常系`をネストする（`describe('categoryPinHandler') > describe('putCategoryPinHandler') > describe('正常系')`）。関数ごとに独立した検証対象なので、`正常系`/`異常系`に直接複数ハンドラのテストを混在させるとテスト名だけでは対象が分かりにくくなるため
 - **同一ファイル内でのArrangeヘルパーはoverrides方式にする**（2026-09-13決定、`categoryPinHandler.test.ts`が最初の適用例）: 同じテーブルへのinsert処理がファイル内で3回以上似た形で繰り返される場合、`insertCategory(overrides: Partial<typeof categoriesTable.$inferInsert> = {})`のように基準値オブジェクトに`{ ...overrides }`を展開して一部だけ上書きできるヘルパーを切り出す。各テストは変更したいフィールドだけを渡せばよく、「このテストが基準値と何を変えているか」が一目で分かる。`expect`はヘルパーに含めず各テストに残す（AHA原則、既存の「Arrangeヘルパーは2ファイル目が必要になった時点で共通化する」はファイル**間**の重複についての規定であり、これはファイル**内**の重複についての規定として区別する）
 
+**テスト中のログ出力の抑止（2026-09-26決定・2026-09-27実装）:** `createTestApp()`は`requestLogger`を通すため、テストのたびにリクエスト完了ログ（JSON）が出る。`vitest.config.ts`のトップレベルの`test`に`silent: 'passed-only'`を置き、成功したテストのログを抑止する（[Vitest: silent](https://vitest.dev/config/silent)。`false`・`true`・`'passed-only'`（失敗したテストのログだけ表示）を取れる）。`extends: true`の3つのproject（`server`・`hooks`・`schema`）すべてに効く。
+
+**`server`projectの`include`に`shared`を追加（2026-09-27決定）:** `error-handler.ts`は`server/shared/`にあるため、既存の`server/{routes,lib}/**/__tests__/*.test.{ts,tsx}`のままでは`server/shared/__tests__/errorHandler.test.ts`がVitestの探索範囲に含まれず、実装と同じ階層にテストを置く既存の配置規約から外れてしまう。`server/{routes,lib,shared}/**/__tests__/*.test.{ts,tsx}`に変更し、`server/shared/__tests__/`配下も対象にする。
+
+- **実験で確認したこと（Vitest 4.1.9）:** `'passed-only'`のとき、成功するテストの`console.warn`は表示されず、`vi.spyOn(console, 'warn')`での呼び出し検証は通り、失敗するテストの`console.warn`は表示される。task 26の「`warn`が出ること」の検証と干渉しない
+- **不採用:** `onConsoleLog`（[Vitest: onConsoleLog](https://vitest.dev/config/onconsolelog)）でJSONの文字列を見分けて除外する方式は、ログの書式変更で壊れ、失敗時のログも消える。`createLogger`を`vi.mock`で差し替える方式は、`logger`・`errorHandler`のテストで実際のJSON出力を検証しにくくなる
+
+**テスト用appの共通配線（`server/test-utils/createTestApp.ts`、2026-09-26決定）:** `errorHandler`が`c.var.logger`を使うため、`structuredLogger`を通らないテスト用appでは`c.var.logger`が`undefined`になる。server層テスト（`categoryListHandler`・`categoryPinHandler`・`profileSetupHandler`）が同じ配線を必要とし、今後も機能追加で増えるため、上記「Arrangeヘルパーは2ファイル目が必要になった時点で共通化する」に従って共通化した。
+
+- **中身:** `new OpenAPIHono()`に`app.use(requestId())`→`app.use(requestLogger)`→`app.onError(errorHandler)`を登録して返すだけ。`route.ts`と同じ配線で、`requestLogger`は`c.var.requestId`を使うため`requestId()`が先。認証ミドルウェアと`app.route()`はテストごとに異なるため含めない（引数フラグで分岐するヘルパーは作らない、というAHA原則にも沿う）
+- **`Env`の総称型（`<>`）は付けない:** `route.ts`の`new OpenAPIHono().basePath('/api')`も`<>`なしで、テスト用appは`route.ts`のミニチュアという位置づけのため揃える。`c.var.userId`等を読むのは各機能のルーター（`new OpenAPIHono<UserEnv>()`）とハンドラ側で、そちらの型は変えない（[api-conventions.md](./api-conventions.md)参照）。`let app`の型は`ReturnType<typeof createTestApp>`
+- **置き場所を`apps/web/server/test-utils/`にした理由:** Vitestはヘルパーの置き場所を規定しておらず（`include`のパターンでテストファイルの探索範囲を決めるのみ。[Vitest include](https://vitest.dev/config/include)）、プロジェクトの規約として決める事項。`test-utils`という名前は[Testing Libraryの公式Setup](https://testing-library.com/docs/react-testing-library/setup/)に`test-utils.tsx`の前例がある（カスタムrender用の例で、置き場所の規定ではない）。`server/lib/`・`server/shared/`は本番コードの置き場のため、テスト専用コードを混ぜないよう避けた。`server/test-utils/`は`route.ts`等から参照されず、`include`（`server/{routes,lib}/**/__tests__/*.test.{ts,tsx}`）にも該当しないので、テストとして実行されず本番バンドルにも含まれない
+- **業務上の一般的な置き方について:** 「共有ヘルパーはテストファイル本体と分けて共通のディレクトリに置く」流儀は複数の資料にある（[Bulletproof React](https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md)の`src/testing/`等）。一方、[Kent C. Doddsのcolocation](https://kentcdodds.com/blog/colocation)は、使う場所が1か所のものを`utils/`へ出さず近くに置くよう勧める。今回は複数機能から使うため共通の置き場にした。統計的に「これが多数派」と言える根拠は見つかっていない
+
 ```ts
 // authMiddlewareはDBにアクセスしないミドルウェアなので静的importのままで問題ない
 // （requireUserMiddlewareを使うルートは動的importが必須。理由は次節参照）
-import { AuthEnv, authMiddleware } from '@/server/lib/auth';
-import { errorHandler } from '@/server/shared/error-handler';
+import { authMiddleware } from '@/server/lib/auth';
+import { createTestApp } from '@/server/test-utils/createTestApp';
 import { clerkMiddleware } from '@clerk/hono';
-import { OpenAPIHono } from '@hono/zod-openapi';
 import { usersTable } from '@repo/db/schema';
 import { Context, Next } from 'hono';
 
@@ -417,14 +431,13 @@ vi.mock('@clerk/hono', () => ({
 }));
 
 describe('profileHandler', () => {
-  let app: OpenAPIHono<AuthEnv>;
+  let app: ReturnType<typeof createTestApp>;
 
   beforeEach(async () => {
     const profileRouter = (await import('@/server/routes/profile')).default;
-    app = new OpenAPIHono<AuthEnv>();
+    app = createTestApp();
     app.use('/profile/*', clerkMiddleware(), authMiddleware);
     app.route('/profile', profileRouter);
-    app.onError(errorHandler);
   });
 
   describe('正常系', () => {
@@ -490,7 +503,7 @@ describe('profileHandler', () => {
 
 **`app.request()`のオプションは省略しない（2026-09-13決定）:** `init`（`RequestInit`）の`method`は未指定だと`GET`扱いになるが、可読性のため明示的に書く（`app.request('/categories?typeCode=1', { method: 'GET' })`）。テストを読んだ時点でHTTPメソッドが一目で分かることを優先する。既存ファイルで省略している箇所は、次にそのファイルを編集するタイミングで揃える。
 
-異常系テストでは`errorHandler`内の`console.error`（想定外エラーのログ出力）が実行時に出力されるが、これは意図的に発生させた500エラーが正しくログ記録されている証跡であり、テスト失敗ではない。
+異常系テストでは`errorHandler`が`c.var.logger`経由で出力する想定外エラーのログ（実体は`console.error`）が実行時に表示されるが、これは意図的に発生させた500エラーが正しくログ記録されている証跡であり、テスト失敗ではない。
 
 **静的importが`vi.resetModules()`より先に評価される落とし穴（2026-09-06判明）:** `categoryListHandler.test.ts`に`requireUserMiddleware`を追加した際、`SQLITE_ERROR: no such table: users`（`server/lib/auth.ts`内のDBクエリで発生）に遭遇した。原因は、テストファイル冒頭の`import { authMiddleware, requireUserMiddleware } from '@/server/lib/auth'`が、テストファイル読み込み時（＝最初の`beforeEach`・`vi.resetModules()`が走るより前）に一度だけ評価される点にあった。`auth.ts`は内部で`db.ts`を静的importしているため、この最初の評価で「テスト用DBに切り替わる前の、一番最初のDB接続」を`auth.ts`のモジュールスコープに固定してしまい、以降`vi.resetModules()`で新しいDBに切り替えても`auth.ts`側の`db`参照は更新されない。`authMiddleware`単体（DBにアクセスしない）ではこの問題は顕在化せず、DBにアクセスする`requireUserMiddleware`を追加して初めて表面化した。
 
