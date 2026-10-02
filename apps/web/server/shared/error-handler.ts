@@ -1,3 +1,4 @@
+import { ForeignResourceAccessError } from '@/server/shared/error/foreignResourceAccessError';
 import { getAuth } from '@clerk/hono';
 import { HTTP_STATUS, unexpectedErrorMessage, validationErrorMessage } from '@repo/common';
 import { DrizzleQueryError } from 'drizzle-orm';
@@ -15,7 +16,8 @@ export const errorHandler = (error: Error, c: Context) => {
   }
 
   if (error instanceof HTTPException) {
-    if (error.status === HTTP_STATUS.NOT_FOUND) {
+    // 他ユーザーのリソースを指定した404だけを記録する（存在しないIDの404は正規ユーザーの通常操作でも起きるため除く）
+    if (error.cause instanceof ForeignResourceAccessError) {
       c.var.logger.warn(
         { event: 'malicious_direct_reference', userId: getAuth(c)?.userId },
         'IDOR試行の疑い'

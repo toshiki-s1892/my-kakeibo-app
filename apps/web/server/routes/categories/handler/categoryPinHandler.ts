@@ -1,5 +1,6 @@
 import { UserEnv } from '@/server/lib/auth';
 import { db } from '@/server/lib/db';
+import { throwResourceNotFound } from '@/server/lib/resource-access';
 import { RouteHandler } from '@hono/zod-openapi';
 import {
   CATEGORY_TYPE,
@@ -33,7 +34,7 @@ export const putCategoryPinHandler: RouteHandler<typeof putCategoryPinRoute, Use
     .where(and(eq(categoriesTable.id, categoryId), eq(categoriesTable.userId, userId)));
 
   if (!category) {
-    throw new HTTPException(HTTP_STATUS.NOT_FOUND, { message: categoryPinTargetInvalidMessage });
+    return throwResourceNotFound(categoriesTable, categoryId, categoryPinTargetInvalidMessage);
   }
 
   // INCOMEカテゴリ・子カテゴリ・削除済みカテゴリはピン留め不可（業務ルール違反のため400）
@@ -78,7 +79,7 @@ export const deleteCategoryPinHandler: RouteHandler<
 
   // 存在しない・自分のカテゴリでない場合は、対象の有無を第三者に漏らさないため404を返す
   if (!category) {
-    throw new HTTPException(HTTP_STATUS.NOT_FOUND, { message: categoryPinTargetInvalidMessage });
+    return throwResourceNotFound(categoriesTable, categoryId, categoryPinTargetInvalidMessage);
   }
 
   // INCOMEカテゴリ・子カテゴリ・削除済みカテゴリはピン留め解除の対象外として400を返す

@@ -1,3 +1,4 @@
+import { ForeignResourceAccessError } from '@/server/shared/error/foreignResourceAccessError';
 import { createTestApp } from '@/server/test-utils/createTestApp';
 import { unexpectedErrorMessage } from '@repo/common';
 import { DrizzleQueryError } from 'drizzle-orm';
@@ -70,10 +71,13 @@ describe('errorHandler', () => {
       expect(typeof log.stack).toBe('string');
     });
 
-    test('404のHTTPExceptionの場合、eventとuserId付きのwarnが出る', async () => {
+    test('causeがForeignResourceAccessErrorのHTTPExceptionの場合、eventとuserId付きのwarnが出る', async () => {
       const app = createTestApp();
       app.get('/error', () => {
-        throw new HTTPException(404, { message: 'not found' });
+        throw new HTTPException(404, {
+          message: 'not found',
+          cause: new ForeignResourceAccessError(),
+        });
       });
 
       const spy = vi.spyOn(console, 'warn');
@@ -88,16 +92,16 @@ describe('errorHandler', () => {
       });
     });
 
-    test('404以外のHTTPExceptionの場合、IDOR試行の疑いのwarnは出ない', async () => {
+    test('causeがForeignResourceAccessErrorでないHTTPExceptionの場合、IDOR試行の疑いのwarnは出ない', async () => {
       const app = createTestApp();
       app.get('/error', () => {
-        throw new HTTPException(400, { message: 'bad request' });
+        throw new HTTPException(404, { message: 'not found' });
       });
 
       const spy = vi.spyOn(console, 'warn');
       const res = await app.request('/error');
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(404);
 
       const logs = spy.mock.calls.map(([payload]) => JSON.parse(payload as string));
       expect(logs.some((entry: { message: string }) => entry.message === 'IDOR試行の疑い')).toBe(
