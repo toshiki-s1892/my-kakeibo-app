@@ -22,6 +22,7 @@ export const createLogger = (createLoggerProps: CreateLoggerProps): Logger => {
     const timestamp = new Date().toISOString();
     let payload: string;
     try {
+      // 後ろに置いたものが勝つため、呼び出し側のfieldsでrequestId・method・pathは上書きできない（ロガー側の値を優先する）
       const entry = { ...fields, ...createLoggerProps, timestamp, level, message };
       payload = stringify(entry);
     } catch {

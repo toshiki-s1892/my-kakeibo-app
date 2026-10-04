@@ -5,12 +5,19 @@ import { DrizzleQueryError } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 
 // clerk認証のmock化
-const { mockClerkId } = vi.hoisted(() => ({
+const { mockClerkId, mockGetAuthThrows } = vi.hoisted(() => ({
   mockClerkId: { current: 'test-clerk-id' },
+  mockGetAuthThrows: { current: false },
 }));
 
 vi.mock('@clerk/hono', () => ({
-  getAuth: () => ({ userId: mockClerkId.current }),
+  // clerkMiddlewareが未適用のルートでは、本物のgetAuthと同じく例外を投げる
+  getAuth: () => {
+    if (mockGetAuthThrows.current) {
+      throw new Error('clerkMiddlewareが適用されていないため、getAuthの取得に失敗しました');
+    }
+    return { userId: mockClerkId.current };
+  },
 }));
 
 describe('errorHandler', () => {
@@ -22,6 +29,10 @@ describe('errorHandler', () => {
     if (!log) throw new Error(`ログが見つかりませんでした: ${message}`);
     return log;
   };
+
+  afterEach(() => {
+    mockGetAuthThrows.current = false;
+  });
 
   describe('異常系', () => {
     test('DrizzleQueryErrorの場合、paramsの値・message・stackがログに出ない', async () => {
@@ -44,7 +55,7 @@ describe('errorHandler', () => {
       expect(log).toMatchObject({
         query: 'INSERT INTO users (secret) VALUES (?)',
         causeMessage: 'UNIQUE constraint failed: users.clerk_id',
-        userId: mockClerkId.current,
+        clerkId: mockClerkId.current,
       });
       expect(JSON.stringify(log)).not.toContain('secretParamValue');
       expect(log).not.toHaveProperty('stack');
@@ -66,12 +77,30 @@ describe('errorHandler', () => {
       const log = findLogByMessage(spy, '想定外エラー');
       expect(log).toMatchObject({
         errorMessage: 'unexpected failure',
-        userId: mockClerkId.current,
+        clerkId: mockClerkId.current,
       });
       expect(typeof log.stack).toBe('string');
     });
 
-    test('causeがForeignResourceAccessErrorのHTTPExceptionの場合、eventとuserId付きのwarnが出る', async () => {
+    test('getAuthが例外を投げる場合も、想定外エラーのログは残り500が返る（clerkIdは出ない）', async () => {
+      mockGetAuthThrows.current = true;
+      const app = createTestApp();
+      app.get('/error', () => {
+        throw new Error('unexpected failure');
+      });
+
+      const spy = vi.spyOn(console, 'error');
+      const res = await app.request('/error');
+
+      expect(res.status).toBe(500);
+      expect(await res.json()).toEqual({ message: unexpectedErrorMessage });
+
+      const log = findLogByMessage(spy, '想定外エラー');
+      expect(log).toMatchObject({ errorMessage: 'unexpected failure' });
+      expect(log).not.toHaveProperty('clerkId');
+    });
+
+    test('causeがForeignResourceAccessErrorのHTTPExceptionの場合、eventとclerkId付きのwarnが出る', async () => {
       const app = createTestApp();
       app.get('/error', () => {
         throw new HTTPException(404, {
@@ -88,7 +117,7 @@ describe('errorHandler', () => {
       const log = findLogByMessage(spy, 'IDOR試行の疑い');
       expect(log).toMatchObject({
         event: 'malicious_direct_reference',
-        userId: mockClerkId.current,
+        clerkId: mockClerkId.current,
       });
     });
 

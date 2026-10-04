@@ -6,6 +6,15 @@ import { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { ZodError } from 'zod';
 
+// ログ用にClerkのIDを取り出す。clerkMiddlewareが適用されていないルートではgetAuthが例外を投げるため、その場合はundefinedにする
+const getClerkIdForLog = (c: Context) => {
+  try {
+    return getAuth(c)?.userId;
+  } catch {
+    return undefined;
+  }
+};
+
 export const errorHandler = (error: Error, c: Context) => {
   if (error instanceof HTTPException && error.cause instanceof ZodError) {
     const details = error.cause.issues.map((issue) => ({
@@ -19,7 +28,7 @@ export const errorHandler = (error: Error, c: Context) => {
     // 他ユーザーのリソースを指定した404だけを記録する（存在しないIDの404は正規ユーザーの通常操作でも起きるため除く）
     if (error.cause instanceof ForeignResourceAccessError) {
       c.var.logger.warn(
-        { event: 'malicious_direct_reference', userId: getAuth(c)?.userId },
+        { event: 'malicious_direct_reference', clerkId: getClerkIdForLog(c) },
         'IDOR試行の疑い'
       );
     }
@@ -28,13 +37,13 @@ export const errorHandler = (error: Error, c: Context) => {
 
   if (error instanceof DrizzleQueryError) {
     c.var.logger.error(
-      { userId: getAuth(c)?.userId, query: error.query, causeMessage: error.cause?.message },
+      { clerkId: getClerkIdForLog(c), query: error.query, causeMessage: error.cause?.message },
       'DBクエリ失敗'
     );
   } else {
     c.var.logger.error(
       {
-        userId: getAuth(c)?.userId,
+        clerkId: getClerkIdForLog(c),
         errorMessage: error.message,
         stack: error.stack,
       },
