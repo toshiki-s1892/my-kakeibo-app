@@ -384,7 +384,7 @@ vi.mock('@clerk/hono', () => ({
 
 `vi.hoisted()`で保持した変数をテストごとに書き換えることで、複数ユーザーが絡むテストケース（家族構成など）にも対応できる。Clerkの「Testing Tokens」（`@clerk/testing`）はブラウザ経由の実サインインフローでボット検知を回避する仕組みであり、`app.request()`で直接ハンドラを叩くこの層には不要。
 
-`server/lib/auth.ts`の`authMiddleware`・`requireUserMiddleware`（それぞれ`c.set('clerkId', ...)`・`c.set('userId', ...)`する自前のミドルウェア）はどちらもモック対象ではない。`getAuth`のモックさえ差し替えれば、両ミドルウェアともモックなしでそのままテストアプリに組み込める（詳細は[api-conventions.mdのuserIdの取得方法](./api-conventions.md#useridの取得方法2026-08-29決定)参照）。ただし`requireUserMiddleware`はDBにアクセスするミドルウェアのため、テストファイルでの読み込み方に注意が必要（[静的importが`vi.resetModules()`より先に評価される落とし穴](#静的importがviresetmodulesより先に評価される落とし穴2026-09-06判明)参照）。
+`server/middleware/auth.ts`の`authMiddleware`・`requireUserMiddleware`（それぞれ`c.set('clerkId', ...)`・`c.set('userId', ...)`する自前のミドルウェア）はどちらもモック対象ではない。`getAuth`のモックさえ差し替えれば、両ミドルウェアともモックなしでそのままテストアプリに組み込める（詳細は[api-conventions.mdのuserIdの取得方法](./api-conventions.md#useridの取得方法2026-08-29決定)参照）。ただし`requireUserMiddleware`はDBにアクセスするミドルウェアのため、テストファイルでの読み込み方に注意が必要（[静的importが`vi.resetModules()`より先に評価される落とし穴](#静的importがviresetmodulesより先に評価される落とし穴2026-09-06判明)参照）。
 
 このモックブロックは**各テストファイルの冒頭に置く（2026-07-20決定）**。`vi.mock`はテストファイル単位で巻き上げられる仕様のため、セットアップファイルや共通関数への抽出は効かない。上記コード例をコピーして使い、ファイル間の重複は技術制約上の必要コストと割り切る。
 
@@ -415,7 +415,7 @@ vi.mock('@clerk/hono', () => ({
 ```ts
 // authMiddlewareはDBにアクセスしないミドルウェアなので静的importのままで問題ない
 // （requireUserMiddlewareを使うルートは動的importが必須。理由は次節参照）
-import { authMiddleware } from '@/server/lib/auth';
+import { authMiddleware } from '@/server/middleware/auth';
 import { createTestApp } from '@/server/test-utils/createTestApp';
 import { clerkMiddleware } from '@clerk/hono';
 import { usersTable } from '@repo/db/schema';
@@ -505,16 +505,16 @@ describe('profileHandler', () => {
 
 異常系テストでは`errorHandler`が`c.var.logger`経由で出力する想定外エラーのログ（実体は`console.error`）が実行時に表示されるが、これは意図的に発生させた500エラーが正しくログ記録されている証跡であり、テスト失敗ではない。
 
-**静的importが`vi.resetModules()`より先に評価される落とし穴（2026-09-06判明）:** `categoryListHandler.test.ts`に`requireUserMiddleware`を追加した際、`SQLITE_ERROR: no such table: users`（`server/lib/auth.ts`内のDBクエリで発生）に遭遇した。原因は、テストファイル冒頭の`import { authMiddleware, requireUserMiddleware } from '@/server/lib/auth'`が、テストファイル読み込み時（＝最初の`beforeEach`・`vi.resetModules()`が走るより前）に一度だけ評価される点にあった。`auth.ts`は内部で`db.ts`を静的importしているため、この最初の評価で「テスト用DBに切り替わる前の、一番最初のDB接続」を`auth.ts`のモジュールスコープに固定してしまい、以降`vi.resetModules()`で新しいDBに切り替えても`auth.ts`側の`db`参照は更新されない。`authMiddleware`単体（DBにアクセスしない）ではこの問題は顕在化せず、DBにアクセスする`requireUserMiddleware`を追加して初めて表面化した。
+**静的importが`vi.resetModules()`より先に評価される落とし穴（2026-09-06判明）:** `categoryListHandler.test.ts`に`requireUserMiddleware`を追加した際、`SQLITE_ERROR: no such table: users`（`server/middleware/auth.ts`内のDBクエリで発生）に遭遇した。原因は、テストファイル冒頭の`import { authMiddleware, requireUserMiddleware } from '@/server/middleware/auth'`が、テストファイル読み込み時（＝最初の`beforeEach`・`vi.resetModules()`が走るより前）に一度だけ評価される点にあった。`auth.ts`は内部で`db.ts`を静的importしているため、この最初の評価で「テスト用DBに切り替わる前の、一番最初のDB接続」を`auth.ts`のモジュールスコープに固定してしまい、以降`vi.resetModules()`で新しいDBに切り替えても`auth.ts`側の`db`参照は更新されない。`authMiddleware`単体（DBにアクセスしない）ではこの問題は顕在化せず、DBにアクセスする`requireUserMiddleware`を追加して初めて表面化した。
 
 対策は、`categoriesRouter`と同様に`auth.ts`からのimportも`beforeEach`内の動的importに変えること。
 
 ```ts
 beforeEach(async () => {
-  const { authMiddleware, requireUserMiddleware } = await import('@/server/lib/auth');
+  const { authMiddleware, requireUserMiddleware } = await import('@/server/middleware/auth');
   const categoriesRouter = (await import('@/server/routes/categories')).default;
   // ...
 });
 ```
 
-**原則:** DBに依存するモジュール（`db.ts`を静的importしているモジュール）を扱うテストファイルでは、そのモジュールの値・関数のimportは必ず`beforeEach`内の動的importにする。型のみのimport（`import type { UserEnv } from '@/server/lib/auth'`等）は型がコンパイル時に消えるため対象外で、静的importのままでよい。
+**原則:** DBに依存するモジュール（`db.ts`を静的importしているモジュール）を扱うテストファイルでは、そのモジュールの値・関数のimportは必ず`beforeEach`内の動的importにする。型のみのimport（`import type { UserEnv } from '@/server/middleware/auth'`等）は型がコンパイル時に消えるため対象外で、静的importのままでよい。

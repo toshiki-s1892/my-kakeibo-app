@@ -13,7 +13,7 @@ Hono + Zod OpenAPIを採用した理由は[stack.md](./stack.md#api-hono--zod-op
   - 1機能に複数エンドポイントがある場合のファイル分割は[下記](#複数エンドポイントを持つ機能のファイル分割2026-08-22決定)を参照
 - メインの `app/api/[...route]/route.ts` で各ルートを `.route()` でマウントすると OpenAPI スペックに自動集約される
 - Clerk認証は `@clerk/hono` の `clerkMiddleware()` を使用する（`@hono/clerk-auth` は非推奨）
-- 各ルートに `clerkMiddleware()` と自前の `authMiddleware`（`server/lib/auth.ts`）をチェーンして適用する（例: `app.use('/profile/*', clerkMiddleware(), authMiddleware)`）。DB上のユーザーが既に存在する前提のルートは、続けて`requireUserMiddleware`も適用する（例: `app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware)`）。詳細は[userIdの取得方法](#useridの取得方法2026-08-29決定)を参照
+- 各ルートに `clerkMiddleware()` と自前の `authMiddleware`（`server/middleware/auth.ts`）をチェーンして適用する（例: `app.use('/profile/*', clerkMiddleware(), authMiddleware)`）。DB上のユーザーが既に存在する前提のルートは、続けて`requireUserMiddleware`も適用する（例: `app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware)`）。詳細は[userIdの取得方法](#useridの取得方法2026-08-29決定)を参照
 - Swagger UI は `/api/ui`、OpenAPI スペックは `/api/doc` で公開する（認証不要）
 - Next.jsミドルウェア（`proxy.ts`）でページルーティングレベルの認証を行い、Honoミドルウェアでは実際のuserId取得・未認証時の401判定を担当する
 - エラーレスポンスは全ルートで共通スキーマ（`errorResponseSchema`）を使用する（詳細は[エラーレスポンス](#エラーレスポンス)参照）
@@ -28,10 +28,10 @@ Hono + Zod OpenAPIを採用した理由は[stack.md](./stack.md#api-hono--zod-op
 
 （2026-09-06改訂: Clerk IDとDBの内部IDを別の変数として分離した。経緯は本節末尾の「Clerk IDとDB内部IDを分離した理由」を参照）
 
-各ハンドラ内で `getAuth(c)` を直接呼ぶのではなく、`server/lib/auth.ts` の2段階のミドルウェア（どちらも `hono/factory` の `createMiddleware`）が認証・ユーザー解決を一元的に行う。
+各ハンドラ内で `getAuth(c)` を直接呼ぶのではなく、`server/middleware/auth.ts` の2段階のミドルウェア（どちらも `hono/factory` の `createMiddleware`）が認証・ユーザー解決を一元的に行う。
 
 ```ts
-// server/lib/auth.ts
+// server/middleware/auth.ts
 type ClerkVariables = { clerkId: string };
 export type AuthEnv = { Variables: ClerkVariables };
 

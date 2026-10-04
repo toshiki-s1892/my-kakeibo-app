@@ -24,7 +24,7 @@
 
 | 場面                                                            | 発生元                                                                                            | ステータス | レスポンスの`message`                                           | 専用のログ（level / `message` / 追加の`fields`）                            |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| 未認証（Clerkのセッションなし）                                 | `authMiddleware`（`server/lib/auth.ts`。`c.json`で直接返す）                                      | 401        | `unauthorizedErrorMessage`                                      | なし                                                                        |
+| 未認証（Clerkのセッションなし）                                 | `authMiddleware`（`server/middleware/auth.ts`。`c.json`で直接返す）                               | 401        | `unauthorizedErrorMessage`                                      | なし                                                                        |
 | ログイン済みだがDBにユーザーが未登録                            | `requireUserMiddleware`（同上）                                                                   | 401        | `unauthorizedErrorMessage`                                      | なし                                                                        |
 | リクエストのバリデーション失敗                                  | `validationErrorHook`が`HTTPException(400, { cause: ZodError })`を`throw` → `errorHandler`の①分岐 | 400        | `validationErrorMessage`＋`details`（`field`・`message`の配列） | なし                                                                        |
 | プロフィールの二重登録（`users`のUNIQUE違反を業務エラーに変換） | `profileSetupHandler`                                                                             | 409        | `alreadySetupMessage`                                           | なし                                                                        |
@@ -40,7 +40,7 @@
 
 ## 全リクエスト共通の「リクエスト完了」ログ
 
-`requestLogger`（`server/lib/request-logger.ts`）が、成功・失敗を問わず**全リクエストの終わりに1行**出す（`message`は`リクエスト完了`）。`fields`は`status`と`elapsedMs`。`level`はレスポンスのステータスで決まる。
+`requestLogger`（`server/middleware/request-logger.ts`）が、成功・失敗を問わず**全リクエストの終わりに1行**出す（`message`は`リクエスト完了`）。`fields`は`status`と`elapsedMs`。`level`はレスポンスのステータスで決まる。
 
 | ステータス     | `level` | 出力先（`console`） |
 | -------------- | ------- | ------------------- |
