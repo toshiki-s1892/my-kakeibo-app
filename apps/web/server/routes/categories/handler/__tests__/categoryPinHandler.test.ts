@@ -91,7 +91,8 @@ describe('categoryPinHandler', () => {
     // （静的importだとForeignResourceAccessErrorのクラス実体がハンドラ側と別になり、errorHandlerのinstanceofが一致しない）
     const { createTestApp } = await import('@/server/test-utils/createTestApp');
     app = createTestApp();
-    app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware);
+    app.use(clerkMiddleware());
+    app.use('/categories/*', authMiddleware, requireUserMiddleware);
     app.route('/categories', categoriesRouter);
 
     const user = await insertUser(mockClerkId.current);

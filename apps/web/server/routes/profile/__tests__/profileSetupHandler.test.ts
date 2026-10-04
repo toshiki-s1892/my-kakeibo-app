@@ -22,7 +22,8 @@ describe('profileHandler', () => {
     const { authMiddleware } = await import('@/server/middleware/auth');
     const profileRouter = (await import('@/server/routes/profile')).default;
     app = createTestApp();
-    app.use('/profile/*', clerkMiddleware(), authMiddleware);
+    app.use(clerkMiddleware());
+    app.use('/profile/*', authMiddleware);
     app.route('/profile', profileRouter);
   });
 

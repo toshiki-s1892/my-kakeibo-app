@@ -26,7 +26,8 @@ describe('categoryListHandler', () => {
     const { authMiddleware, requireUserMiddleware } = await import('@/server/middleware/auth');
     const categoriesRouter = (await import('@/server/routes/categories')).default;
     app = createTestApp();
-    app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware);
+    app.use(clerkMiddleware());
+    app.use('/categories/*', authMiddleware, requireUserMiddleware);
     app.route('/categories', categoriesRouter);
 
     const { db } = await import('@/server/lib/db');

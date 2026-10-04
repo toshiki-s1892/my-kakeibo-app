@@ -14,8 +14,10 @@ const app = new OpenAPIHono().basePath('/api');
 
 app.use(requestId());
 app.use(requestLogger);
-app.use('/profile/*', clerkMiddleware(), authMiddleware);
-app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware);
+// Clerkのログイン情報を全ルートで使えるようにする（拒否はしない。拒否はauthMiddlewareが行う）
+app.use(clerkMiddleware());
+app.use('/profile/*', authMiddleware);
+app.use('/categories/*', authMiddleware, requireUserMiddleware);
 
 app.route('/profile', profileRouter);
 app.route('/categories', categoriesRouter);
@@ -27,16 +29,19 @@ app.openAPIRegistry.registerComponent('securitySchemes', 'Bearer', {
   scheme: 'bearer',
 });
 
-app.doc('/doc', {
-  openapi: '3.0.0',
-  info: {
-    title: '家計簿API',
-    version: '1.0.0',
-  },
-});
+// 開発者向けのAPIドキュメントは本番では公開しない（存在しないURLと同じ404になる）
+if (process.env.NODE_ENV !== 'production') {
+  app.doc('/doc', {
+    openapi: '3.0.0',
+    info: {
+      title: '家計簿API',
+      version: '1.0.0',
+    },
+  });
 
-// Swagger UI
-app.get('/ui', swaggerUI({ url: '/api/doc' }));
+  // Swagger UI
+  app.get('/ui', swaggerUI({ url: '/api/doc' }));
+}
 
 export const GET = handle(app);
 export const POST = handle(app);
