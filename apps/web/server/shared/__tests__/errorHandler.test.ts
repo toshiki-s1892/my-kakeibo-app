@@ -62,7 +62,7 @@ describe('errorHandler', () => {
       expect(log).not.toHaveProperty('errorMessage');
     });
 
-    test('DrizzleQueryError以外のErrorの場合、messageとstackがログに出る', async () => {
+    test('DrizzleQueryError以外のErrorの場合、messageがログに出ず、errorNameとstackが出る', async () => {
       const app = createTestApp();
       app.get('/error', () => {
         throw new Error('unexpected failure');
@@ -76,10 +76,11 @@ describe('errorHandler', () => {
 
       const log = findLogByMessage(spy, '想定外エラー');
       expect(log).toMatchObject({
-        errorMessage: 'unexpected failure',
+        errorName: 'Error',
         clerkId: mockClerkId.current,
       });
-      expect(typeof log.stack).toBe('string');
+      expect(Array.isArray(log.stack)).toBe(true);
+      expect(JSON.stringify(log)).not.toContain('unexpected failure');
     });
 
     test('getAuthが例外を投げる場合も、想定外エラーのログは残り500が返る（clerkIdは出ない）', async () => {
@@ -96,8 +97,10 @@ describe('errorHandler', () => {
       expect(await res.json()).toEqual({ message: unexpectedErrorMessage });
 
       const log = findLogByMessage(spy, '想定外エラー');
-      expect(log).toMatchObject({ errorMessage: 'unexpected failure' });
+      expect(log).toMatchObject({ errorName: 'Error' });
       expect(log).not.toHaveProperty('clerkId');
+      expect(Array.isArray(log.stack)).toBe(true);
+      expect(JSON.stringify(log)).not.toContain('unexpected failure');
     });
 
     test('causeがForeignResourceAccessErrorのHTTPExceptionの場合、eventとclerkId付きのwarnが出る', async () => {

@@ -6,6 +6,11 @@ import { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { ZodError } from 'zod';
 
+// 先頭のエラー名・メッセージ行は含めずに、stackの各行を配列として返す。
+const getStackFrames = (error: Error): string[] => {
+  return error.stack?.split('\n').filter((line) => line.trimStart().startsWith('at ')) ?? [];
+};
+
 // ログ用にClerkのIDを取り出す。clerkMiddlewareが適用されていないルートではgetAuthが例外を投げるため、その場合はundefinedにする
 const getClerkIdForLog = (c: Context) => {
   try {
@@ -44,8 +49,8 @@ export const errorHandler = (error: Error, c: Context) => {
     c.var.logger.error(
       {
         clerkId: getClerkIdForLog(c),
-        errorMessage: error.message,
-        stack: error.stack,
+        errorName: error.name,
+        stack: getStackFrames(error),
       },
       '想定外エラー'
     );
