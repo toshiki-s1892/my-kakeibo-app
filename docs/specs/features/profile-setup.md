@@ -28,7 +28,7 @@ Clerkのウェブフックは使用しない。signup時はDB操作を行わず�
 
 「レコードがある = プロフィール設定完了」と明確に判断できる。途中離脱しても再度プロフィール設定画面にリダイレクトされる。
 
-Next.js の `proxy.ts`（Edge Runtime）ではなく `(app)/layout.tsx`（Node.js Server Component）で実装している。DB アクセスを含む処理は Edge Runtime の制約を避けるため Server Component で行う。
+Next.js の `proxy.ts` ではなく `(app)/layout.tsx`（Node.js Server Component）で実装している。Next.js公式が、Proxyはレンダリングと別に呼び出されるもので共有モジュールやグローバルに依存すべきでなく、最後の手段として使うことを推奨しているため（[Next.js: proxy.js](https://nextjs.org/docs/app/api-reference/file-conventions/proxy)）、DB アクセスを含む処理は Server Component で行う。（当初の「`proxy.ts`は Edge Runtime のため」という理由は誤りだった。Next.js 16 では`proxy.ts`もNode.js runtimeが既定。2026-09-19訂正）
 
 **逆方向のガード**: セットアップ完了済みのユーザーが`/profile-setup`に直接アクセスした場合は`/dashboard`へリダイレクトする（`app/(onboarding)/profile-setup/layout.tsx`に`(app)/layout.tsx`と対称のガードを実装）。これが無いと再度フォームが表示され、再送信時に`users`テーブルの一意制約エラーになる可能性がある。
 

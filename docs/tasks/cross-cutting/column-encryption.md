@@ -1,10 +1,10 @@
 # 機微データの列暗号化
 
-方針の詳細は [security.mdの機微データの列暗号化](../../architecture/decisions/security.md#機微データの列暗号化アプリ層暗号化2026-08-23決定) を参照。
+方針の詳細は [security.mdの機微データの列暗号化](../../architecture/decisions/security.md#機微データの列暗号化アプリ層暗号化cwe-3112026-08-23決定) を参照。
 
 ## バックエンド
 
-- [ ] 1. `server/lib/crypto.ts` に `encrypt()`/`decrypt()` を実装する（AES-256-GCM。暗号文フォーマットは`v1:<iv>:<ciphertext>`のように鍵バージョンを含める）。**`app/api/[...route]/route.ts`が`export const runtime = 'edge'`のためNode.jsの`crypto`モジュールは使えない。Web Crypto API（`crypto.subtle.encrypt`/`crypto.subtle.decrypt`、`{ name: 'AES-GCM' }`）で実装する**（2026-08-23確認）
+- [ ] 1. `server/lib/crypto.ts` に `encrypt()`/`decrypt()` を実装する（AES-256-GCM。暗号文フォーマットは`v1:<iv>:<ciphertext>`のように鍵バージョンを含める）。**Web Crypto API（`crypto.subtle.encrypt`/`crypto.subtle.decrypt`、`{ name: 'AES-GCM' }`）で実装する**（2026-08-23確認。当初はedge runtimeでNode.jsの`crypto`モジュールが使えないことが理由だった。2026-09-19にNode.js runtimeへ移行したため`node:crypto`も選べるが、Web Crypto APIはランタイム非依存で方針を変える理由がないため維持する。Node.js上での利用可否は実装時にNode公式ドキュメントで確認する）
 - [ ] 2. `APP_ENCRYPTION_KEY`（32byte）をVercelの環境変数（Production限定公開）に追加する
 - [ ] 3. `transaction_parties`の作成・更新・取得処理で`name`を`encrypt()`/`decrypt()`経由にする（[transaction-parties.md](../../specs/features/transaction-parties.md)のhandler）
 - [ ] 4. `family_members`の作成・更新・取得処理で`name`・`birthday`を`encrypt()`/`decrypt()`経由にする（[family-members.md](../../specs/features/family-members.md)のhandler）

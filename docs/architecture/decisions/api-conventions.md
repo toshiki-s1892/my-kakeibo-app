@@ -13,11 +13,11 @@ Hono + Zod OpenAPIを採用した理由は[stack.md](./stack.md#api-hono--zod-op
   - 1機能に複数エンドポイントがある場合のファイル分割は[下記](#複数エンドポイントを持つ機能のファイル分割2026-08-22決定)を参照
 - メインの `app/api/[...route]/route.ts` で各ルートを `.route()` でマウントすると OpenAPI スペックに自動集約される
 - Clerk認証は `@clerk/hono` の `clerkMiddleware()` を使用する（`@hono/clerk-auth` は非推奨）
-- 各ルートに `clerkMiddleware()` と自前の `authMiddleware`（`server/lib/auth.ts`）をチェーンして適用する（例: `app.use('/profile/*', clerkMiddleware(), authMiddleware)`）。DB上のユーザーが既に存在する前提のルートは、続けて`requireUserMiddleware`も適用する（例: `app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware)`）。詳細は[userIdの取得方法](#useridの取得方法2026-08-29決定)を参照
+- アプリ全体に `clerkMiddleware()` を1回だけ適用し（`route.ts` の `app.use(clerkMiddleware())`）、各ルートに自前の `authMiddleware`（`server/middleware/auth.ts`）をチェーンして認証を拒否する（例: `app.use('/profile/*', authMiddleware)`）。DB上のユーザーが既に存在する前提のルートは、続けて`requireUserMiddleware`も適用する（例: `app.use('/categories/*', authMiddleware, requireUserMiddleware)`）。`clerkMiddleware()` は拒否せずログイン情報を準備するだけのため、グローバルに適用しても未ログインのリクエストは `authMiddleware` で止まる。詳細は[userIdの取得方法](#useridの取得方法2026-08-29決定)を参照
 - Swagger UI は `/api/ui`、OpenAPI スペックは `/api/doc` で公開する（認証不要）
 - Next.jsミドルウェア（`proxy.ts`）でページルーティングレベルの認証を行い、Honoミドルウェアでは実際のuserId取得・未認証時の401判定を担当する
 - エラーレスポンスは全ルートで共通スキーマ（`errorResponseSchema`）を使用する（詳細は[エラーレスポンス](#エラーレスポンス)参照）
-- **状態を変更する操作にGETを使わない**（一覧・詳細取得のみGET、作成・更新・削除・ピン留め等はPOST/PUT/DELETE）。Clerkのセッションcookieが`SameSite=Lax`であるためのCSRF対策として機能する（[security.mdのCSRF対策](./security.md#csrf対策2026-08-23決定確認事項)参照）。この規約を崩すと追加のCSRF対策が必要になる
+- **状態を変更する操作にGETを使わない**（一覧・詳細取得のみGET、作成・更新・削除・ピン留め等はPOST/PUT/DELETE）。Clerkのセッションcookieが`SameSite=Lax`であるためのCSRF対策として機能する（[security.mdのCSRF対策](./security.md#csrf対策cwe-3522026-08-23決定確認事項)参照）。この規約を崩すと追加のCSRF対策が必要になる
 - 共有スキーマ（複数ルートで使うもの）は `server/shared/` に配置する
   - `error/errorResponseSchema.ts`: `errorResponseSchema`
   - `error/errorResponses.ts`: 共通エラーレスポンス（詳細は[共通エラーレスポンスの再利用](#共通エラーレスポンスの再利用2026-09-04決定)参照）
@@ -28,10 +28,10 @@ Hono + Zod OpenAPIを採用した理由は[stack.md](./stack.md#api-hono--zod-op
 
 （2026-09-06改訂: Clerk IDとDBの内部IDを別の変数として分離した。経緯は本節末尾の「Clerk IDとDB内部IDを分離した理由」を参照）
 
-各ハンドラ内で `getAuth(c)` を直接呼ぶのではなく、`server/lib/auth.ts` の2段階のミドルウェア（どちらも `hono/factory` の `createMiddleware`）が認証・ユーザー解決を一元的に行う。
+各ハンドラ内で `getAuth(c)` を直接呼ぶのではなく、`server/middleware/auth.ts` の2段階のミドルウェア（どちらも `hono/factory` の `createMiddleware`）が認証・ユーザー解決を一元的に行う。
 
 ```ts
-// server/lib/auth.ts
+// server/middleware/auth.ts
 type ClerkVariables = { clerkId: string };
 export type AuthEnv = { Variables: ClerkVariables };
 
@@ -67,8 +67,8 @@ export const requireUserMiddleware = createMiddleware<UserEnv>(async (c, next) =
 - `authMiddleware` はDBに一切アクセスせず、未認証チェックと `c.var.clerkId`（Clerkの生ID）のセットのみを担当する
 - `requireUserMiddleware` は `clerkId` から `usersTable` を検索し、DB上の内部ID（`users.id`）を `c.var.userId` にセットする。**`categoriesTable.userId` 等、DBの外部キーは全てこの内部ID（`users.id`）を指しており、Clerkの生IDではない**（[database.mdのテーブル定義](../database.md)参照）ため、所有者チェックを行うハンドラは必ず `requireUserMiddleware` まで適用したうえで `c.var.userId` を使う
 - ルート登録は用途に応じてどちらまで適用するかを選ぶ
-  - `profileSetupHandler` のように**まだDBにユーザーが存在しない前提**（初回登録）で呼ばれるルートは `authMiddleware` のみ（`app.use('/profile/*', clerkMiddleware(), authMiddleware)`）。`clerkId` をそのまま `usersTable.clerk_id` に保存してユーザーを新規作成する
-  - `categories` のように**DB上のユーザーが既に存在する前提**のルートは、続けて `requireUserMiddleware` も適用する（`app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware)`）
+  - `profileSetupHandler` のように**まだDBにユーザーが存在しない前提**（初回登録）で呼ばれるルートは `authMiddleware` のみ（`app.use('/profile/*', authMiddleware)`）。`clerkId` をそのまま `usersTable.clerk_id` に保存してユーザーを新規作成する
+  - `categories` のように**DB上のユーザーが既に存在する前提**のルートは、続けて `requireUserMiddleware` も適用する（`app.use('/categories/*', authMiddleware, requireUserMiddleware)`）
 
 ハンドラ側はそれぞれ `c.var.clerkId` / `c.var.userId` で取得する。`AuthEnv`・`UserEnv` により `string` 型として保証されるため、`getAuth(c)` 直呼びの頃に必要だった非null断定（`userId!`）が不要になる。
 
@@ -185,7 +185,7 @@ const categories = parentRows.map((row) => ({
 ```
 
 - `parentId === null`の分岐で`continue`することで、以降のループ本体では`row.parentId`がTypeScriptにより自動的に非null（`string`）へ絞り込まれ、`!`による非null断定が不要になる
-- `Map.groupBy`（ES2024）は使わない。本番は`export const runtime = 'edge'`（Vercel Edge Runtime）で動作しており、新しい言語機能のサポート状況は[stack.mdのNode.jsバージョン方針](./stack.md#nodejsバージョン方針active-lts2026-08-30決定)が指摘する通りローカルのNode.jsバージョンとは別軸で確認が必要なため、事前検証の手間がない手動ループを優先する
+- `Map.groupBy`（ES2024）は使わない。本番はVercelのNode.js runtimeで動作するが、Vercelで実際に使われるNode.jsバージョンが`engines.node`（`>=24`）と一致するか未確認のため（[stack.mdのNode.jsバージョン方針](./stack.md#nodejsバージョン方針active-lts2026-08-30決定)・[nodejs-runtime-migration.md](../../tasks/cross-cutting/nodejs-runtime-migration.md)で確認する）、確認が取れるまでは事前検証の手間がない手動ループを優先する。確認後にこのルールを見直す
 - 列を絞った`select({...})`クエリ結果1件分の型は、Drizzle公式の`$inferSelect`／`InferSelectModel`（テーブル全体の型になり、選択した列と一致しない）ではなく、`type Row = (typeof queryResult)[number]`というTypeScript標準のIndexed Access Types（[公式Handbook](https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html)）でクエリ結果から直接取り出す
 
 ## リクエストボディサイズの上限（2026-08-23決定）
@@ -199,7 +199,7 @@ Vercelはプラットフォーム側で全リクエストボディを4.5MBに強
 - **認証済みエンドポイント全体**: ユーザー単位（`auth.userId`）で緩めの上限を設ける。IP単位にしない理由は、同一IPを複数ユーザーが共有するケース（オフィスWi-Fi等）を誤って巻き込まないため、また1ユーザーがIPを変えても制限を回避できないようにするため
 - **AIエンドポイント（レシート読み取り・アドバイス）**: 既存の日次上限（`ai_usage_logs`、[ai.md](../../specs/features/ai.md)）とは別に、ユーザー単位の短時間バースト制限を追加で重ねる（日次上限に達する前の連打でコスト・レイテンシが跳ねるのを防ぐため）
 - **Webhookエンドポイント（Clerkの`user.deleted`等）**: 未認証で受けるため、レート制限より署名検証（本命の防御）を優先する
-- 実装は[本アプリのAPI（`app/api/[...route]/route.ts`）が`export const runtime = 'edge'`のため](../overview.md)、サーバーレス関数をまたいだカウントが必要。Upstash Redis + `hono-rate-limiter`を使用し、`server/lib/rate-limit.ts`に薄いアダプタとして実装する（将来AWS等へ移行してもUpstashはREST APIのため接続先を変えずに使い続けられる）
+- 実装は、Vercel Functionsが複数のインスタンスにスケールしインスタンス間でメモリを共有しないため、関数をまたいだカウントが必要。Upstash Redis + `hono-rate-limiter`を使用し、`server/lib/rate-limit.ts`に薄いアダプタとして実装する（将来AWS等へ移行してもUpstashはREST APIのため接続先を変えずに使い続けられる）
 
 ## DBクライアントの分離
 
@@ -401,4 +401,4 @@ try {
 
 外部監視サービス（Sentry等）は導入せず、Vercel標準のRuntime Logs（Functionsのconsole出力を収集する機能）で対応する。個人・家族規模の利用のため、新しい技術選定・追加コストをかけずVercelダッシュボードでの検索で十分と判断した（[stack.mdのホスティング選定](./stack.md#ホスティング-vercelhobbyプラン)参照）。
 
-`errorHandler`の「③想定外の例外（500固定）」分岐で、`console.error`にClerkの`userId`（`getAuth(c)`から取得。未認証なら`null`）・リクエストパス（`c.req.path`）・エラー内容を出力する。これにより「いつ・誰が・どのエンドポイントで」予期しない例外が発生したかをVercelのログ検索で追える。①バリデーション失敗・②業務ロジックが意図的に`throw`した`HTTPException`は、原因がエラーレスポンスの`message`・`details`から明確なためログ出力は不要。
+`errorHandler`の「③想定外の例外（500固定）」分岐で、`console.error`にClerkの`clerkId`（`getClerkIdForLog(c)`から取得。未認証なら`null`。`getAuth`が例外を投げる場合は省く）・リクエストパス（`c.req.path`）・エラー内容を出力する。これにより「いつ・誰が・どのエンドポイントで」予期しない例外が発生したかをVercelのログ検索で追える。①バリデーション失敗・②業務ロジックが意図的に`throw`した`HTTPException`は、原因がエラーレスポンスの`message`・`details`から明確なためログ出力は不要。

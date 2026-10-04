@@ -10,6 +10,7 @@ export default defineConfig({
     globals: true, // describe/test/expect/viをimportなしで使えるようにする（tsconfigの"vitest/globals"とセット）
     passWithNoTests: true, // テストファイルが0件でもエラーにしない
     clearMocks: true, // 各テスト前に全モックの呼び出し履歴をクリアする
+    silent: 'passed-only', // 失敗したテストのみconsole出力を行う
     reporters: ['verbose'],
     projects: [
       {
@@ -17,7 +18,7 @@ export default defineConfig({
         test: {
           name: 'server',
           environment: 'node',
-          include: ['server/{routes,lib}/**/__tests__/*.test.{ts,tsx}'],
+          include: ['server/{routes,lib,shared}/**/__tests__/*.test.{ts,tsx}'],
           setupFiles: ['./vitest.setup.server.ts'],
         },
       },

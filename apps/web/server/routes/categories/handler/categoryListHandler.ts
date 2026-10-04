@@ -1,4 +1,4 @@
-import { UserEnv } from '@/server/lib/auth';
+import { UserEnv } from '@/server/middleware/auth';
 import { db } from '@/server/lib/db';
 import { RouteHandler } from '@hono/zod-openapi';
 import { categoriesTable } from '@repo/db/schema';

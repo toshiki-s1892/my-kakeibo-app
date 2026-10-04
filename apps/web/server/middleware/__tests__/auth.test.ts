@@ -1,4 +1,4 @@
-import { AuthEnv, UserEnv } from '@/server/lib/auth';
+import { AuthEnv, UserEnv } from '@/server/middleware/auth';
 import { unauthorizedErrorMessage } from '@repo/common';
 import { usersTable } from '@repo/db/schema';
 import { Hono } from 'hono';
@@ -18,7 +18,7 @@ describe('authMiddleware', () => {
   beforeEach(async () => {
     mockClerkId.current = 'test-clerk-id';
 
-    const { authMiddleware } = await import('@/server/lib/auth');
+    const { authMiddleware } = await import('@/server/middleware/auth');
     app = new Hono<AuthEnv>();
     app.use('*', authMiddleware);
     app.get('/', (c) => c.json({ clerkId: c.var.clerkId }));
@@ -49,7 +49,7 @@ describe('requireUserMiddleware', () => {
   beforeEach(async () => {
     mockClerkId.current = 'test-clerk-id';
 
-    const { authMiddleware, requireUserMiddleware } = await import('@/server/lib/auth');
+    const { authMiddleware, requireUserMiddleware } = await import('@/server/middleware/auth');
     app = new Hono<UserEnv>();
     app.use('*', authMiddleware, requireUserMiddleware);
     app.get('/', (c) => c.json({ userId: c.var.userId }));

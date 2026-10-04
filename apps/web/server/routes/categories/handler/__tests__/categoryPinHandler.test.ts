@@ -1,7 +1,5 @@
-import { UserEnv } from '@/server/lib/auth';
-import { errorHandler } from '@/server/shared/error-handler';
+import type { createTestApp } from '@/server/test-utils/createTestApp';
 import { clerkMiddleware } from '@clerk/hono';
-import { OpenAPIHono } from '@hono/zod-openapi';
 import {
   CATEGORY_COLOR_CODE,
   CATEGORY_ICON_CODE,
@@ -29,7 +27,7 @@ vi.mock('@clerk/hono', () => ({
 }));
 
 describe('categoryPinHandler', () => {
-  let app: OpenAPIHono<UserEnv>;
+  let app: ReturnType<typeof createTestApp>;
   let testUserId: string;
 
   // clerkIdを指定してテストユーザーを1件作成する
@@ -80,13 +78,22 @@ describe('categoryPinHandler', () => {
     return category;
   };
 
+  // console.warnの呼び出しからIDOR試行のログ行だけを取り出す
+  const findIdorLogs = (spy: { mock: { calls: unknown[][] } }) =>
+    spy.mock.calls
+      .map(([payload]) => JSON.parse(payload as string))
+      .filter((entry) => entry.event === 'malicious_direct_reference');
+
   beforeEach(async () => {
-    const { authMiddleware, requireUserMiddleware } = await import('@/server/lib/auth');
+    const { authMiddleware, requireUserMiddleware } = await import('@/server/middleware/auth');
     const categoriesRouter = (await import('@/server/routes/categories')).default;
-    app = new OpenAPIHono<UserEnv>();
-    app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware);
+    // setupのvi.resetModules()後にハンドラと同じモジュール実体を使うため動的importする
+    // （静的importだとForeignResourceAccessErrorのクラス実体がハンドラ側と別になり、errorHandlerのinstanceofが一致しない）
+    const { createTestApp } = await import('@/server/test-utils/createTestApp');
+    app = createTestApp();
+    app.use(clerkMiddleware());
+    app.use('/categories/*', authMiddleware, requireUserMiddleware);
     app.route('/categories', categoriesRouter);
-    app.onError(errorHandler);
 
     const user = await insertUser(mockClerkId.current);
     testUserId = user.id;
@@ -109,26 +116,30 @@ describe('categoryPinHandler', () => {
     });
 
     describe('異常系', () => {
-      test('存在しないカテゴリーIDをピン留めしようとした場合、404エラーを返す', async () => {
+      test('存在しないカテゴリーIDをピン留めしようとした場合、404エラーを返しIDOR試行のログは出さない', async () => {
         const noExistCategoryId = randomUUID();
+        const warnSpy = vi.spyOn(console, 'warn');
         const res = await app.request(`/categories/${noExistCategoryId}/pin`, {
           method: 'PUT',
         });
 
         expect(res.status).toBe(404);
         expect(await res.json()).toMatchObject({ message: categoryPinTargetInvalidMessage });
+        expect(findIdorLogs(warnSpy)).toHaveLength(0);
       });
 
-      test('他ユーザーのカテゴリーIDをピン留めしようとした場合、404エラーを返す', async () => {
+      test('他ユーザーのカテゴリーIDをピン留めしようとした場合、404エラーを返しIDOR試行のログを出す', async () => {
         const otherUser = await insertUser('other-clerk-id');
         const otherUserCategory = await insertCategory({ userId: otherUser.id });
 
+        const warnSpy = vi.spyOn(console, 'warn');
         const res = await app.request(`/categories/${otherUserCategory.id}/pin`, {
           method: 'PUT',
         });
 
         expect(res.status).toBe(404);
         expect(await res.json()).toMatchObject({ message: categoryPinTargetInvalidMessage });
+        expect(findIdorLogs(warnSpy)).toHaveLength(1);
 
         const unchangedCategory = await findCategory(otherUserCategory.id);
         expect(unchangedCategory.isPinned).toBe(false);
@@ -202,26 +213,30 @@ describe('categoryPinHandler', () => {
     });
 
     describe('異常系', () => {
-      test('存在しないカテゴリーIDをピン留め解除しようとした場合、404エラーを返す', async () => {
+      test('存在しないカテゴリーIDをピン留め解除しようとした場合、404エラーを返しIDOR試行のログは出さない', async () => {
         const noExistCategoryId = randomUUID();
+        const warnSpy = vi.spyOn(console, 'warn');
         const res = await app.request(`/categories/${noExistCategoryId}/pin`, {
           method: 'DELETE',
         });
 
         expect(res.status).toBe(404);
         expect(await res.json()).toMatchObject({ message: categoryPinTargetInvalidMessage });
+        expect(findIdorLogs(warnSpy)).toHaveLength(0);
       });
 
-      test('他ユーザーのカテゴリーIDをピン留め解除しようとした場合、404エラーを返す', async () => {
+      test('他ユーザーのカテゴリーIDをピン留め解除しようとした場合、404エラーを返しIDOR試行のログを出す', async () => {
         const otherUser = await insertUser('other-clerk-id');
         const otherUserCategory = await insertCategory({ userId: otherUser.id, isPinned: true });
 
+        const warnSpy = vi.spyOn(console, 'warn');
         const res = await app.request(`/categories/${otherUserCategory.id}/pin`, {
           method: 'DELETE',
         });
 
         expect(res.status).toBe(404);
         expect(await res.json()).toMatchObject({ message: categoryPinTargetInvalidMessage });
+        expect(findIdorLogs(warnSpy)).toHaveLength(1);
 
         const unchangedCategory = await findCategory(otherUserCategory.id);
         expect(unchangedCategory.isPinned).toBe(true);

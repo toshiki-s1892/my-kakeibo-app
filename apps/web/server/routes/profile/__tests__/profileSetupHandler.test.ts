@@ -1,7 +1,5 @@
-import { AuthEnv } from '@/server/lib/auth';
-import { errorHandler } from '@/server/shared/error-handler';
+import { createTestApp } from '@/server/test-utils/createTestApp';
 import { clerkMiddleware } from '@clerk/hono';
-import { OpenAPIHono } from '@hono/zod-openapi';
 import { usersTable } from '@repo/db/schema';
 import { Context, Next } from 'hono';
 
@@ -18,15 +16,15 @@ vi.mock('@clerk/hono', () => ({
 }));
 
 describe('profileHandler', () => {
-  let app: OpenAPIHono<AuthEnv>;
+  let app: ReturnType<typeof createTestApp>;
 
   beforeEach(async () => {
-    const { authMiddleware } = await import('@/server/lib/auth');
+    const { authMiddleware } = await import('@/server/middleware/auth');
     const profileRouter = (await import('@/server/routes/profile')).default;
-    app = new OpenAPIHono<AuthEnv>();
-    app.use('/profile/*', clerkMiddleware(), authMiddleware);
+    app = createTestApp();
+    app.use(clerkMiddleware());
+    app.use('/profile/*', authMiddleware);
     app.route('/profile', profileRouter);
-    app.onError(errorHandler);
   });
 
   describe('正常系', () => {

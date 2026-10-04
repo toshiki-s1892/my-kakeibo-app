@@ -3,7 +3,7 @@ import { HTTP_STATUS, unauthorizedErrorMessage } from '@repo/common';
 import { usersTable } from '@repo/db/schema';
 import { eq } from 'drizzle-orm';
 import { createMiddleware } from 'hono/factory';
-import { db } from './db';
+import { db } from '@/server/lib/db';
 
 type ClerkVariables = { clerkId: string };
 export type AuthEnv = { Variables: ClerkVariables };
