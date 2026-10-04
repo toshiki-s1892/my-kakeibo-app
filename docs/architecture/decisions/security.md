@@ -35,9 +35,9 @@ IDを推測されにくくする（[UUID化](./stack.md#id設計-uuid全テー�
 
 **IDOR試行の検知ログは個別ハンドラではなく`errorHandler`で一元化する（2026-09-13決定）:** 現状このアプリで404を返す箇所は、上記の所有者チェック失敗パターンとほぼ一致する。ハンドラごとにログ呼び出しを仕込むと実装漏れが起こりうるため、`server/shared/error-handler.ts`側で`HTTPException`のステータスが404の場合に一律で`warn`ログ（[ログ出力の構造化基盤](#ログ出力の構造化基盤とセキュリティイベント記録2026-09-19更新)参照）を出す。将来「本当に存在しないリソース」と「他人の所有物」を区別する404が増えた場合は、この一律ログの前提が崩れるため見直すこと。
 
-**IDOR試行のログには`event: 'malicious_direct_reference'`を付ける（2026-09-26決定）:** [OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html)は、認可（アクセス制御）の失敗を記録すべきイベントに挙げ、ログにセキュリティ以外のイベントも混在する場合は「セキュリティ関連イベントのフラグ」を付けることを勧めている。[OWASP Logging Vocabulary](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Vocabulary_Cheat_Sheet.html)は「セキュリティイベントの標準語彙の提案」で、監視・アラートをこの用語で引けるようにするのが目的。認可失敗には`authz_fail`（一般的な認可失敗）と`malicious_direct_reference`（かつてのOWASP Top 10のIDOR。例文は「User joebob1 attempted to access an object to which they are not authorized」）があり、ここで記録するのはIDORの試行なので後者を使う。メッセージ文（「IDOR試行の疑い」）だけで識別すると言い換えで検索が壊れるため、構造化フィールドで識別する。語彙のイベント名以降のフィールド（`userid`・`resource`）は任意で、`userId`は`fields`に足し、`resource`はロガーが全行に付与する`path`で足りる。語彙のレベルはCRITICALだが、このプロジェクトのレベル体系（4xxは`warn`）に合わせて`warn`とし、語彙のレベルには合わせない（語彙にレベルの一致を求める記述はない）。存在しないIDの404も同じイベントになる限界は、上記の「一律ログの前提」と同じ。
+**IDOR試行のログには`event: 'malicious_direct_reference'`を付ける（2026-09-26決定）:** [OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html)は、認可（アクセス制御）の失敗を記録すべきイベントに挙げ、ログにセキュリティ以外のイベントも混在する場合は「セキュリティ関連イベントのフラグ」を付けることを勧めている。[OWASP Logging Vocabulary](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Vocabulary_Cheat_Sheet.html)は「セキュリティイベントの標準語彙の提案」で、監視・アラートをこの用語で引けるようにするのが目的。認可失敗には`authz_fail`（一般的な認可失敗）と`malicious_direct_reference`（かつてのOWASP Top 10のIDOR。例文は「User joebob1 attempted to access an object to which they are not authorized」）があり、ここで記録するのはIDORの試行なので後者を使う。メッセージ文（「IDOR試行の疑い」）だけで識別すると言い換えで検索が壊れるため、構造化フィールドで識別する。語彙のイベント名以降のフィールド（`userid`・`resource`）は任意で、`clerkId`は`fields`に足し、`resource`はロガーが全行に付与する`path`で足りる。語彙のレベルはCRITICALだが、このプロジェクトのレベル体系（4xxは`warn`）に合わせて`warn`とし、語彙のレベルには合わせない（語彙にレベルの一致を求める記述はない）。存在しないIDの404も同じイベントになる限界は、上記の「一律ログの前提」と同じ。
 
-**既存の「リクエスト完了」のwarnとは別の行になる（2026-09-26）:** `requestLogger`は404を含む4xxを`warn`の「リクエスト完了」で記録するため、404のたびに同じリクエストで`warn`が2行になる。専用の行は`userId`と`event`を持つ点が違い（「リクエスト完了」には`userId`がない）、意図的な重複とする。
+**既存の「リクエスト完了」のwarnとは別の行になる（2026-09-26）:** `requestLogger`は404を含む4xxを`warn`の「リクエスト完了」で記録するため、404のたびに同じリクエストで`warn`が2行になる。専用の行は`clerkId`と`event`を持つ点が違い（「リクエスト完了」には`clerkId`がない）、意図的な重複とする。
 
 ## 機微データの列暗号化（アプリ層暗号化）（CWE-311）（2026-08-23決定）
 
@@ -93,7 +93,7 @@ Clerkダッシュボードの設定でMFA（認証アプリ・TOTP等）を有�
 - **Drizzleのときに`stack`を出さない理由（2026-09-26決定）:** 当初は「`stack`は`at`で始まる行だけ出す」としていたが、これは誤り。`message`の`params`に「改行＋`at `」を含む入力値が入ると、`at`フィルタを通り抜けて漏れることを実験で確認した（Node 24＋drizzle-orm 0.45.2）。`DrizzleQueryError`は`super(message)`の後に`Error.captureStackTrace`を呼ぶだけで`name`は設定しないため、`stack`の先頭は`Error: Failed query: ...\nparams: ...`になる（`errors.js`で確認）。「ヘッダ全体を先頭一致で切り落とし、残りを出す」方式なら漏れずにハンドラ側の呼び出し行が残ることも実験で確認したが、採らなかった。(1) 前例が見つからず、実務の主流は「`params`も`stack`も出さない」（[quackback PR #166](https://github.com/venturi-systems/quackback/pull/166)は`error.stack`が`message`で始まる点を理由に、エラーオブジェクトをロガーに渡さない）。(2) V8の`stack`の書式への依存が要る（Bun（JavaScriptCore）ではハンドラ側の行が出ない）。(3) 本番のサーバー側ソースマップは`experimental.serverSourceMaps`と`NODE_OPTIONS=--enable-source-maps`が必要で、両方experimentalのため保証がなく（[vercel/next.js Discussion #66146](https://github.com/vercel/next.js/discussions/66146)）、有効にしないとstackの行はバンドル後の位置になり、失敗箇所の手がかりとして弱い。OWASPもスタックトレースを主のログと別扱いにする選択肢を示している。**既知の限界:** 同一エンドポイント内で同じSQLが複数回実行される場合、どの呼び出しが失敗したかは`query`だけでは区別できない（`method`・`path`は全行に付く）。実務の判断基準（公式のベストプラクティスまたは実務でよく使われる手法）を優先して受け入れた
 - **`cause.message`に値が入らないことを確認した（2026-09-26）:** libsql（`:memory:`）でDrizzle 0.45を使い、NOT NULL・CHECK・外部キー・構文エラーを実際に起こして確認した。`cause.message`は`SQLITE_CONSTRAINT: NOT NULL constraint failed: c.name`・`SQLITE_CONSTRAINT: CHECK constraint failed: amount > 0`・`SQLITE_CONSTRAINT: FOREIGN KEY constraint failed`・`SQLITE_ERROR: near "?": syntax error`で、入力値は入らない（出るのはテーブル名・列名・CHECKの式などスキーマ側の情報）。UNIQUEも確認済み（`UNIQUE constraint failed: memos.title`）。ローカルのlibsqlでの結果で、本番のTurso（リモート接続）で同じ文言になるかは実測していない
 
-**`errorHandler`は`HTTPException`のステータスが404の場合、`c.var.logger.warn()`でIDOR試行の疑いとして一律記録する（`event: 'malicious_direct_reference'`と`userId`を付ける）。** 詳細は[IDOR対策の該当項](#idor不正な直接オブジェクト参照対策cwe-639)を参照。
+**`errorHandler`は`HTTPException`のステータスが404の場合、`c.var.logger.warn()`でIDOR試行の疑いとして一律記録する（`event: 'malicious_direct_reference'`と`clerkId`を付ける）。** 詳細は[IDOR対策の該当項](#idor不正な直接オブジェクト参照対策cwe-639)を参照。
 
 **`Logger`型の呼び出し形は`(fields, message)`の順（オブジェクトが先、メッセージが後）とする（2026-09-19決定）。** `@hono/structured-logger`のREADMEの例（`logger.info({ method, path, elapsedMs }, 'request completed')`）がこの順で、将来pinoに差し替える際も呼び出し側を変えずに済むため。`fields`は`Record<string, unknown>`で必須とする。`message`は日本語の固定文言（状況で変わる文章ではなく、検索できる識別子として使う）、キー名は英語とする。
 
@@ -101,10 +101,19 @@ Clerkダッシュボードの設定でMFA（認証アプリ・TOTP等）を有�
 
 - `timestamp`・`level`・`message`: `logger.ts`が付与する
 - `requestId`・`method`・`path`: リクエスト開始時点で分かるため、`createLogger(c)`で全ログ行に付与する（`path`はクエリ文字列を含まない）
-- `userId`: ロガー生成時点では認証が終わっていないため、呼び出し側（`errorHandler`等）が`getAuth(c)?.userId`で`fields`に足す
-- `status`・`elapsedMs`: リクエスト完了ログ（下記）で、`logRequestCompleted`が`fields`に足す。完了ログへの`userId`の追加は未実装（下記）
+- `clerkId`: ロガー生成時点では認証が終わっていないため、呼び出し側（`errorHandler`等）が`getClerkIdForLog(c)`で`fields`に足す（`getAuth`が例外を投げる場合は省く）
+- `status`・`elapsedMs`: リクエスト完了ログ（下記）で、`logRequestCompleted`が`fields`に足す。完了ログへの`clerkId`の追加は未実装（下記）
 
-**リクエスト/レスポンスのボディはログに出さない（2026-09-19決定）。** 金額・メモ・家族の氏名など、[列暗号化の対象](#機微データの列暗号化アプリ層暗号化cwe-3112026-08-23決定)を含む個人データが混入するため（OWASPも機微な個人データの記録を禁止している）。不正リクエストの調査は、`userId`・`method`・`path`（IDORならパスに対象IDが入る）等のメタデータで行う。特定項目の値が必要になった場合は、項目を絞り、長さを制限し、ログ注入（改行文字等）対策のサニタイズを行ったうえで出す。400の検証エラーで`field`（Zodの`path`）を残す拡張は、必要になった時点で検討する。
+### ログに出すIDはClerkのIDだけ（2026-10-04決定）
+
+ログに出すユーザーのIDは、Clerkの ID（`clerkId`）だけにする。内部のDBのID（`userId`）は出さない。
+
+- **理由1: Clerkの IDは秘密ではないが、個人情報につながる。** Clerkのアカウント（メールアドレス・名前など）を、管理画面で探せるようになるため、必要な分だけ出す
+- **理由2: 内部のDBのIDは、DBを見られる人にしか意味がない。** 外部に出ても、データは読めない
+- **IDOR調査には`clerkId`で足りる。** [OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html)は、調査に個人の特定が必要なときはユーザーのIDを記録してよいとし、不要なら仮名化を勧めている。今回は仮名化（ハッシュ化）はしない（鍵の管理が増えるため。ログの閲覧者はチームメンバーに限られ、保存期間も短い）
+- **`getAuth`が例外を投げる場合（`clerkMiddleware`未適用）は、`clerkId`のキーを省く。** 元のエラーのログは残す（`getClerkIdForLog`）
+
+**リクエスト/レスポンスのボディはログに出さない（2026-09-19決定）。** 金額・メモ・家族の氏名など、[列暗号化の対象](#機微データの列暗号化アプリ層暗号化cwe-3112026-08-23決定)を含む個人データが混入するため（OWASPも機微な個人データの記録を禁止している）。不正リクエストの調査は、`clerkId`・`method`・`path`（IDORならパスに対象IDが入る）等のメタデータで行う。特定項目の値が必要になった場合は、項目を絞り、長さを制限し、ログ注入（改行文字等）対策のサニタイズを行ったうえで出す。400の検証エラーで`field`（Zodの`path`）を残す拡張は、必要になった時点で検討する。
 
 **リクエスト完了ログ（canonical log line）を、全リクエストに1行出す（2026-09-21決定）:**
 
@@ -114,7 +123,7 @@ Clerkダッシュボードの設定でMFA（認証アプリ・TOTP等）を有�
 - **`err`（`onError`の引数）は使わない:** エラーの詳細（`message`・`stack`）は`errorHandler`に集約する。完了ログにも出すと同じ情報が2回になり、失敗したクエリの値が入りうる`message`（CWE-532）の出力箇所が増えるため。同じリクエストのログは`requestId`でつながる
 - **レベルはステータスで決める:** 500以上は`error`、400以上は`warn`、それ以外は`info`。根拠は、pino-httpの`customLogLevel`（[README](https://github.com/pinojs/pino-http)）とHono＋pinoの実例（[Apitally](https://apitally.io/blog/hono-logging-guide)）が同じ基準であること。4xxを`error`にしない点は資料の意見が一致する（[NalleRooth](https://nallerooth.com/posts/dont-log-http-400-as-error/)）。`info`か`warn`かは資料で分かれるが、404のIDOR疑い（`warn`）や401の追跡を考え、4xxは`warn`に統一する。Vercelでは`console.warn`が通常の関数でErrorとして表示されるため、Errorの絞り込みに4xxが混ざる副作用がある（4xxのリクエストはVercelが自動でWarningとマークするので見落としは起きない）。この調整は`output`の対応表で行い、意味としてのレベル（JSONの`level`）は変えない
 - **1行に絞る根拠:** [Stripe](https://stripe.com/blog/canonical-log-lines)・[Better Stack](https://betterstack.com/community/guides/logging/logging-best-practices/)は、リクエストの終わりに要約を1行出す方式を推奨し、失敗したリクエストでも必ず出す（Stripeは`ensure`ブロック）。pino-httpも応答が終わったときに`request completed`を出す。`onRequest`（開始ログ）は入れない（開始ログを勧める資料は見つからず、1リクエストのログが倍になるため。「始まったのに終わらないリクエスト」を調べたくなった時点で足す）
-- **Vercelの既存機能との重複:** Vercelは、メソッド・パス・ステータス・実行時間・Request Idをログ詳細に標準で出す。`status`・`elapsedMs`だけの完了ログはそれと重なるため、**`userId`など、アプリの中でしか分からない情報を足すことで価値が出る**。`userId`の追加は未実装（認証後に`c.var`から取れる値を`fields`に足す）
+- **Vercelの既存機能との重複:** Vercelは、メソッド・パス・ステータス・実行時間・Request Idをログ詳細に標準で出す。`status`・`elapsedMs`だけの完了ログはそれと重なるため、**`clerkId`など、アプリの中でしか分からない情報を足すことで価値が出る**。`clerkId`の追加は未実装（認証後に`c.var`から取れる値を`fields`に足す）
 - **AWS移行時の注意:** AWS Lambdaは、`level`と`timestamp`（RFC 3339）のキーを持つ自前のJSONを出力すれば、その`level`でログレベルの絞り込みができ、標準の`console.warn`はWARNとして扱われる（[AWS公式](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-logging.html)）。今のJSON（`level`・`timestamp`）はこの形式に合う。`level`の値の大文字・小文字は未確認で、移行時に確認する
 
 **将来検討:** 送信元IP。OWASPは「送信元アドレス」を記録項目に挙げるが、個人情報にもなりうるため、扱いとVercel上での取得方法を確認してから判断する。あわせて、Vercelのログ保存期間が短い（Hobbyは1時間）ため、セキュリティイベントの長期保存（Log Drains等）も検討する。
@@ -198,6 +207,14 @@ Vercelの環境は Production・Preview・Development の3つがあり、**Previ
 Tursoは継続的にバックアップを取っており、Point-in-Time Recovery（PITR）で任意時点への復元が可能（プランにより保持期間が異なる。[Turso公式](https://docs.turso.tech/features/point-in-time-recovery)）。復元は既存DBへの上書きではなく**新しいデータベースが作成される**ため、復元後はアプリの接続先（`TURSO_CONNECTION_URL`）を切り替える作業が発生する。「バックアップが取られている」ことの確認だけでなく、**実際に復元コマンド（`turso db create new-db --from-db old-db --timestamp ...`）を一度試し、復元後の接続切り替え手順を確認しておく**（本番障害時に手順を初めて試すことがないようにするため）。
 
 - 自動更新PR（Dependabot version updates または Renovate）の導入は将来検討とする
+
+## APIドキュメント（`/api/doc`・`/api/ui`）の本番非公開（2026-10-04決定）
+
+`/api/doc`（OpenAPIスペック）と`/api/ui`（Swagger UI）は、APIの全エンドポイント・パラメータ・レスポンス形式が分かるため、本番では登録しない（存在しないURLと同じ404になる）。開発環境でのみ公開する。Spring Bootの公式でも既定で詳細情報を隠す扱いで、開発用のドキュメントを公開しないのは一般的な運用とされている（[Spring Boot Actuator](https://docs.spring.io/spring-boot/reference/actuator/endpoints.html)）。
+
+- 判定は`process.env.NODE_ENV !== 'production'`で行う（`server/lib/db.ts`の判定と揃える）。Vercelの Preview デプロイも`NODE_ENV`は`production`になるため、Previewでもドキュメントは見えない。Previewで見たくなった場合は`VERCEL_ENV`での判定へ変える
+- `proxy.ts`の公開ルートには`/api/doc`・`/api/ui`が残っている。本番では登録されないため、この設定は実害がない
+- ヘルスチェック（`/api/health`）は、このブランチでは対応しない（別途検討）
 
 ## その他フレームワーク・サービスが対応済みのもの
 

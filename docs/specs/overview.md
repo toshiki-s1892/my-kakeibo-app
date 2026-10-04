@@ -21,14 +21,16 @@
 
 Hono + `@hono/zod-openapi` で構築。`apps/web/app/api/[...route]/route.ts` で全ルートをマウント。
 
-| エンドポイント | 説明                                    |
-| -------------- | --------------------------------------- |
-| `/api/doc`     | OpenAPI スペック（JSON）                |
-| `/api/ui`      | Swagger UI（APIドキュメント・動作確認） |
+| エンドポイント | 説明                                                                 |
+| -------------- | -------------------------------------------------------------------- |
+| `/api/doc`     | OpenAPI スペック（JSON）。開発環境のみ（本番では404）                |
+| `/api/ui`      | Swagger UI（APIドキュメント・動作確認）。開発環境のみ（本番では404） |
+
+本番で公開しない理由は[security.mdのAPIドキュメントの本番非公開](../architecture/decisions/security.md#apiドキュメントapidocapiuiの本番非公開2026-10-04決定)を参照。
 
 ### 認証
 
-`clerkMiddleware()` をメインappでグローバルに適用。`/api/doc`・`/api/ui` のみ認証不要。
+`clerkMiddleware()` をメインappでグローバルに適用。`/api/doc`・`/api/ui` は開発環境で認証不要（本番では登録しない）。
 
 ### ルート構成
 

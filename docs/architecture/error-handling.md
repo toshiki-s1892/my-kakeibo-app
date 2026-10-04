@@ -22,21 +22,22 @@
 
 クライアントへのレスポンスと、その場面で**専用に**出るログ。専用のログとは別に、全リクエストで[「リクエスト完了」](#全リクエスト共通のリクエスト完了ログ)が1行出る。
 
-| 場面                                                            | 発生元                                                                                            | ステータス | レスポンスの`message`                                           | 専用のログ（level / `message` / 追加の`fields`）                            |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| 未認証（Clerkのセッションなし）                                 | `authMiddleware`（`server/middleware/auth.ts`。`c.json`で直接返す）                               | 401        | `unauthorizedErrorMessage`                                      | なし                                                                        |
-| ログイン済みだがDBにユーザーが未登録                            | `requireUserMiddleware`（同上）                                                                   | 401        | `unauthorizedErrorMessage`                                      | なし                                                                        |
-| リクエストのバリデーション失敗                                  | `validationErrorHook`が`HTTPException(400, { cause: ZodError })`を`throw` → `errorHandler`の①分岐 | 400        | `validationErrorMessage`＋`details`（`field`・`message`の配列） | なし                                                                        |
-| プロフィールの二重登録（`users`のUNIQUE違反を業務エラーに変換） | `profileSetupHandler`                                                                             | 409        | `alreadySetupMessage`                                           | なし                                                                        |
-| ピン留め・解除の対象カテゴリが存在しない／他人のもの            | `categoryPinHandler`                                                                              | 404        | `categoryPinTargetInvalidMessage`                               | `warn` / `IDOR試行の疑い` / `event: 'malicious_direct_reference'`・`userId` |
-| ピン留め・解除の対象にできないカテゴリ                          | `categoryPinHandler`                                                                              | 400        | `categoryPinTargetInvalidMessage`                               | なし                                                                        |
-| ピン留めを最後の1件から解除しようとした                         | `categoryPinHandler`                                                                              | 400        | `lastPinnedCategoryMessage`                                     | なし                                                                        |
-| DBクエリの失敗（制約違反を業務エラーに変換していないもの）      | `errorHandler`の③分岐（`DrizzleQueryError`）                                                      | 500        | `unexpectedErrorMessage`                                        | `error` / `DBクエリ失敗` / `userId`・`query`・`causeMessage`                |
-| 上記以外の想定外の例外                                          | `errorHandler`の③分岐                                                                             | 500        | `unexpectedErrorMessage`                                        | `error` / `想定外エラー` / `userId`・`errorMessage`・`stack`                |
+| 場面                                                            | 発生元                                                                                            | ステータス | レスポンスの`message`                                           | 専用のログ（level / `message` / 追加の`fields`）                             |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 未認証（Clerkのセッションなし）                                 | `authMiddleware`（`server/middleware/auth.ts`。`c.json`で直接返す）                               | 401        | `unauthorizedErrorMessage`                                      | なし                                                                         |
+| ログイン済みだがDBにユーザーが未登録                            | `requireUserMiddleware`（同上）                                                                   | 401        | `unauthorizedErrorMessage`                                      | なし                                                                         |
+| リクエストのバリデーション失敗                                  | `validationErrorHook`が`HTTPException(400, { cause: ZodError })`を`throw` → `errorHandler`の①分岐 | 400        | `validationErrorMessage`＋`details`（`field`・`message`の配列） | なし                                                                         |
+| プロフィールの二重登録（`users`のUNIQUE違反を業務エラーに変換） | `profileSetupHandler`                                                                             | 409        | `alreadySetupMessage`                                           | なし                                                                         |
+| ピン留め・解除の対象カテゴリが存在しない／他人のもの            | `categoryPinHandler`                                                                              | 404        | `categoryPinTargetInvalidMessage`                               | `warn` / `IDOR試行の疑い` / `event: 'malicious_direct_reference'`・`clerkId` |
+| ピン留め・解除の対象にできないカテゴリ                          | `categoryPinHandler`                                                                              | 400        | `categoryPinTargetInvalidMessage`                               | なし                                                                         |
+| ピン留めを最後の1件から解除しようとした                         | `categoryPinHandler`                                                                              | 400        | `lastPinnedCategoryMessage`                                     | なし                                                                         |
+| DBクエリの失敗（制約違反を業務エラーに変換していないもの）      | `errorHandler`の③分岐（`DrizzleQueryError`）                                                      | 500        | `unexpectedErrorMessage`                                        | `error` / `DBクエリ失敗` / `clerkId`・`query`・`causeMessage`                |
+| 上記以外の想定外の例外                                          | `errorHandler`の③分岐                                                                             | 500        | `unexpectedErrorMessage`                                        | `error` / `想定外エラー` / `clerkId`・`errorMessage`・`stack`                |
 
 - 文言の定数は`packages/common/src/api-error-message.ts`にある。`HTTPException`を意図的に`throw`する箇所の`message`は、各呼び出し元が指定する（`errorHandler`が固定しない）。
 - **ログに出さない値:** `DrizzleQueryError`の`params`・`message`・`stack`（入力値が混入するため。`query`は`?`のままのSQL、`causeMessage`は`cause.message`のみ）。`error`オブジェクトそのものも渡さない。
 - 業務エラーの`HTTPException`（上表のうち401を除く4xx）は、404を除き`errorHandler`が専用のログを出さない。原因がレスポンスの`message`・`details`から明確なため。
+- **ログに出すIDは Clerk の ID（`clerkId`）だけ**（2026-10-04決定）。`getAuth` が例外を投げる場合（`clerkMiddleware` 未適用）は、`getClerkIdForLog` が `undefined` を返し、そのキーは出ない。元のエラーのログは残る。理由は[security.mdのログに出すID](./decisions/security.md#ログに出すidはclerkidだけ2026-10-04決定)参照。
 
 ## 全リクエスト共通の「リクエスト完了」ログ
 
@@ -50,11 +51,11 @@
 
 このため、1つのリクエストで複数行になる場面がある。
 
-| 場面                              | 出る行                                                                                                |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 想定外エラー・DBクエリ失敗（500） | `error`「想定外エラー」または「DBクエリ失敗」＋`error`「リクエスト完了」                              |
-| 404                               | `warn`「IDOR試行の疑い」＋`warn`「リクエスト完了」（意図的な重複。前者だけが`userId`・`event`を持つ） |
-| 401・400・409                     | `warn`「リクエスト完了」のみ                                                                          |
+| 場面                              | 出る行                                                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 想定外エラー・DBクエリ失敗（500） | `error`「想定外エラー」または「DBクエリ失敗」＋`error`「リクエスト完了」                               |
+| 404                               | `warn`「IDOR試行の疑い」＋`warn`「リクエスト完了」（意図的な重複。前者だけが`clerkId`・`event`を持つ） |
+| 401・400・409                     | `warn`「リクエスト完了」のみ                                                                           |
 
 ## ログの組み立て自体が失敗したとき
 

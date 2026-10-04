@@ -366,7 +366,7 @@ Gemini実装時は、プロンプト組み立て・レスポンス解析など�
 
 **結合テストのClerk認証モック:**
 
-Clerk公式も「サードパーティライブラリの内部実装に対する結合テストは書かない」ことを推奨しているため、`@clerk/hono`モジュール自体を`vi.mock()`で丸ごとモックする（`clerkMiddleware()`は`app.use('/profile/*', clerkMiddleware())`で実際にマウントされているため、`getAuth`だけでなく`clerkMiddleware`もモックが必要）。
+Clerk公式も「サードパーティライブラリの内部実装に対する結合テストは書かない」ことを推奨しているため、`@clerk/hono`モジュール自体を`vi.mock()`で丸ごとモックする（`clerkMiddleware()`は`app.use(clerkMiddleware())`で全体に実際にマウントされているため、`getAuth`だけでなく`clerkMiddleware`もモックが必要）。
 
 ```ts
 // 変数名はmockClerkId（getAuthが返すのはClerkの生ID。DBの内部userIdとは別物）
@@ -436,7 +436,8 @@ describe('profileHandler', () => {
   beforeEach(async () => {
     const profileRouter = (await import('@/server/routes/profile')).default;
     app = createTestApp();
-    app.use('/profile/*', clerkMiddleware(), authMiddleware);
+    app.use(clerkMiddleware());
+    app.use('/profile/*', authMiddleware);
     app.route('/profile', profileRouter);
   });
 

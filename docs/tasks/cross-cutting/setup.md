@@ -21,13 +21,13 @@
 - [x] 2. `/api/doc` にOpenAPIスペックを公開
 - [x] 3. `/api/ui` にSwagger UIを設定
 - [x] 4. Bearer認証スキームをOpenAPIレジストリに登録
-- [x] 5. 各ルートごとに `clerkMiddleware()` を適用（`@clerk/hono` を使用）
+- [x] 5. 各ルートごとに `clerkMiddleware()` を適用（`@clerk/hono` を使用）（2026-10-04: アプリ全体に1回だけ適用する方式に変更。`app.use(clerkMiddleware())`）
 
 ---
 
 ## Clerk Next.js ミドルウェア（`proxy.ts`）
 
-- [x] 1. `/sign-in` `/sign-up` `/api/ui` `/api/doc` を公開ルートとして設定
+- [x] 1. `/sign-in` `/sign-up` `/api/ui` `/api/doc` を公開ルートとして設定（2026-10-04追記: `/api/ui`・`/api/doc`は本番で登録しないため、本番では404。詳細は[security.md](../../architecture/decisions/security.md#apiドキュメントapidocapiuiの本番非公開2026-10-04決定)参照）
 - [x] 2. その他すべてのルートを認証必須に設定
 
 ---
