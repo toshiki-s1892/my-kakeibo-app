@@ -14,7 +14,6 @@ const app = new OpenAPIHono().basePath('/api');
 
 app.use(requestId());
 app.use(requestLogger);
-// Clerkのログイン情報を全ルートで使えるようにする（拒否はしない。拒否はauthMiddlewareが行う）
 app.use(clerkMiddleware());
 app.use('/profile/*', authMiddleware);
 app.use('/categories/*', authMiddleware, requireUserMiddleware);
