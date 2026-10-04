@@ -1,4 +1,4 @@
-import { ForeignResourceAccessError } from '@/server/shared/error/foreignResourceAccessError';
+import { ForeignResourceAccessError } from '@/server/shared/error/customErrors';
 import { getAuth } from '@clerk/hono';
 import { HTTP_STATUS, unexpectedErrorMessage, validationErrorMessage } from '@repo/common';
 import { DrizzleQueryError } from 'drizzle-orm';

@@ -1,15 +1,15 @@
-import { ForeignResourceAccessError } from '@/server/shared/error/foreignResourceAccessError';
+import { ForeignResourceAccessError } from '@/server/shared/error/customErrors';
 import { HTTP_STATUS } from '@repo/common';
 import { eq } from 'drizzle-orm';
-import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
+import type { AnySQLiteColumn, AnySQLiteTable } from 'drizzle-orm/sqlite-core';
 import { HTTPException } from 'hono/http-exception';
 import { db } from './db';
 
-type TableWithId = SQLiteTable & { id: SQLiteColumn };
+type TableWithId = AnySQLiteTable & { id: AnySQLiteColumn };
 
 // 所有者で絞った検索で対象が見つからなかったときに呼び、404をthrowする。
 // レスポンスは「存在しない」「他人のもの」を区別せず同じ404にし、他人のものの場合だけcauseで印を付ける
-export const throwResourceNotFound = async (
+export const throwOwnedResourceNotFound = async (
   table: TableWithId,
   id: string,
   message: string

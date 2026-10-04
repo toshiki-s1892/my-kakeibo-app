@@ -23,7 +23,7 @@ describe('categoryListHandler', () => {
   let testUserId: string;
 
   beforeEach(async () => {
-    const { authMiddleware, requireUserMiddleware } = await import('@/server/lib/auth');
+    const { authMiddleware, requireUserMiddleware } = await import('@/server/middleware/auth');
     const categoriesRouter = (await import('@/server/routes/categories')).default;
     app = createTestApp();
     app.use('/categories/*', clerkMiddleware(), authMiddleware, requireUserMiddleware);

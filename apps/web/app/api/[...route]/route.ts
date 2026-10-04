@@ -1,6 +1,6 @@
 import '@/lib/zod-locale';
-import { authMiddleware, requireUserMiddleware } from '@/server/lib/auth';
-import { requestLogger } from '@/server/lib/request-logger';
+import { authMiddleware, requireUserMiddleware } from '@/server/middleware/auth';
+import { requestLogger } from '@/server/middleware/request-logger';
 import categoriesRouter from '@/server/routes/categories';
 import profileRouter from '@/server/routes/profile';
 import { errorHandler } from '@/server/shared/error-handler';

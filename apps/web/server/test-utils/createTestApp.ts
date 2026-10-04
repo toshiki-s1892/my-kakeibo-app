@@ -1,4 +1,4 @@
-import { requestLogger } from '@/server/lib/request-logger';
+import { requestLogger } from '@/server/middleware/request-logger';
 import { errorHandler } from '@/server/shared/error-handler';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { requestId } from 'hono/request-id';

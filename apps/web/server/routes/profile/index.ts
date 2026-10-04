@@ -1,4 +1,4 @@
-import { AuthEnv } from '@/server/lib/auth';
+import { AuthEnv } from '@/server/middleware/auth';
 import { validationErrorHook } from '@/server/shared/default-hook';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { profileSetupHandler } from './handler/profileSetupHandler';

@@ -1,4 +1,4 @@
-import { AuthEnv } from '@/server/lib/auth';
+import { AuthEnv } from '@/server/middleware/auth';
 import { db } from '@/server/lib/db';
 import { RouteHandler } from '@hono/zod-openapi';
 import { LibsqlError } from '@libsql/client';

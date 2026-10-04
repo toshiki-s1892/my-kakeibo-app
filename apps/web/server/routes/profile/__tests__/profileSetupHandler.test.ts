@@ -19,7 +19,7 @@ describe('profileHandler', () => {
   let app: ReturnType<typeof createTestApp>;
 
   beforeEach(async () => {
-    const { authMiddleware } = await import('@/server/lib/auth');
+    const { authMiddleware } = await import('@/server/middleware/auth');
     const profileRouter = (await import('@/server/routes/profile')).default;
     app = createTestApp();
     app.use('/profile/*', clerkMiddleware(), authMiddleware);

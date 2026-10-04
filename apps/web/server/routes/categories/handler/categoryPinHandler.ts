@@ -1,6 +1,6 @@
-import { UserEnv } from '@/server/lib/auth';
+import { UserEnv } from '@/server/middleware/auth';
 import { db } from '@/server/lib/db';
-import { throwResourceNotFound } from '@/server/lib/resource-access';
+import { throwOwnedResourceNotFound } from '@/server/lib/resource-access';
 import { RouteHandler } from '@hono/zod-openapi';
 import {
   CATEGORY_TYPE,
@@ -23,7 +23,7 @@ export const putCategoryPinHandler: RouteHandler<typeof putCategoryPinRoute, Use
   const userId = c.var.userId;
   const { categoryId } = c.req.valid('param');
 
-  // 存在しない・自分のカテゴリでない場合は、対象の有無を第三者に漏らさないため404にする（IDORの再発防止対策）
+  // 存在しない・自分のカテゴリでない場合は、対象の有無を第三者に漏らさないため404にする（IDORの防止対策）
   const [category] = await db
     .select({
       typeCode: categoriesTable.typeCode,
@@ -34,7 +34,7 @@ export const putCategoryPinHandler: RouteHandler<typeof putCategoryPinRoute, Use
     .where(and(eq(categoriesTable.id, categoryId), eq(categoriesTable.userId, userId)));
 
   if (!category) {
-    return throwResourceNotFound(categoriesTable, categoryId, categoryPinTargetInvalidMessage);
+    return throwOwnedResourceNotFound(categoriesTable, categoryId, categoryPinTargetInvalidMessage);
   }
 
   // INCOMEカテゴリ・子カテゴリ・削除済みカテゴリはピン留め不可（業務ルール違反のため400）
@@ -79,7 +79,7 @@ export const deleteCategoryPinHandler: RouteHandler<
 
   // 存在しない・自分のカテゴリでない場合は、対象の有無を第三者に漏らさないため404を返す
   if (!category) {
-    return throwResourceNotFound(categoriesTable, categoryId, categoryPinTargetInvalidMessage);
+    return throwOwnedResourceNotFound(categoriesTable, categoryId, categoryPinTargetInvalidMessage);
   }
 
   // INCOMEカテゴリ・子カテゴリ・削除済みカテゴリはピン留め解除の対象外として400を返す

@@ -85,7 +85,7 @@ describe('categoryPinHandler', () => {
       .filter((entry) => entry.event === 'malicious_direct_reference');
 
   beforeEach(async () => {
-    const { authMiddleware, requireUserMiddleware } = await import('@/server/lib/auth');
+    const { authMiddleware, requireUserMiddleware } = await import('@/server/middleware/auth');
     const categoriesRouter = (await import('@/server/routes/categories')).default;
     // setupのvi.resetModules()後にハンドラと同じモジュール実体を使うため動的importする
     // （静的importだとForeignResourceAccessErrorのクラス実体がハンドラ側と別になり、errorHandlerのinstanceofが一致しない）

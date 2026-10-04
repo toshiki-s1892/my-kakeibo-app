@@ -1,6 +1,6 @@
 import { structuredLogger } from '@hono/structured-logger';
 import { HTTP_STATUS } from '@repo/common';
-import { createLogger, type Logger, type LogLevel } from './logger';
+import { createLogger, type Logger, type LogLevel } from '@/server/lib/logger';
 
 const levelFromStatus = (status: number): LogLevel => {
   if (status >= HTTP_STATUS.INTERNAL_SERVER_ERROR) {

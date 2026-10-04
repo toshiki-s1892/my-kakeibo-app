@@ -1,4 +1,4 @@
-import { ForeignResourceAccessError } from '@/server/shared/error/foreignResourceAccessError';
+import { ForeignResourceAccessError } from '@/server/shared/error/customErrors';
 import { createTestApp } from '@/server/test-utils/createTestApp';
 import { unexpectedErrorMessage } from '@repo/common';
 import { DrizzleQueryError } from 'drizzle-orm';
